@@ -239,6 +239,7 @@ const SPECIAL = [
   {k:'letzterKontakt', l:'Letzter Kontakt (Datum)', syn:['letzter kontakt','zuletzt kontaktiert','last contact','datum letzter kontakt','letzter kontakt am']},
   {k:'verlauf', l:'Bemerkungen / Kontaktverlauf', syn:['bemerkung','bemerkungen','kontaktverlauf','verlauf','kommentar','kommentare','notizen','notiz','notes','historie']}
 ];
+const APP_VERSION='25.11.2026, 17:39';
 const STORE_KEY='crm.kontakte.v2', OLD_KEY='crm.kontakte.v1', UI_KEY='crm.ui.v1';
 
 /* ---------- Helfer ---------- */
@@ -602,7 +603,7 @@ function detailView(){
   if(c.geburtsdatum){
     const dt=daysToBirthday(c.geburtsdatum);
     const soon=dt===0?', hat heute Geburtstag':dt<=30?`, Geburtstag in ${dt} ${dt===1?'Tag':'Tagen'}`:'';
-    kv.push(['Geburtsdatum',`${esc(fmtYMD(c.geburtsdatum))} (${age(c.geburtsdatum)} Jahre${soon})<div class="status">${needsGeb(c)?`Noch nicht im Geburtstagskalender. <button data-act="gebOne" data-id="${esc(c.id)}">Jetzt eintragen</button>`:`Im Geburtstagskalender bis ${c.gebKal.bis}`}</div>`]);
+    kv.push(['Geburtsdatum',`${esc(fmtYMD(c.geburtsdatum))} (${age(c.geburtsdatum)} Jahre${soon})<div class="status">${needsGeb(c)?`Noch nicht im Kalender. <button data-act="gebOne" data-id="${esc(c.id)}">Jetzt eintragen</button>`:`Jährlich im Kalender. <button data-act="gebOne" data-id="${esc(c.id)}">Nochmals eintragen</button>`}</div>`]);
   }
   if(c.beruf) kv.push(['Beruf',esc(c.beruf)]);
   const orte=(c.orte||[]).filter(o=>o.ort||o.plz);
@@ -717,8 +718,9 @@ function savePlan(){
 function findEntry(eid){ const c=contacts.find(x=>x.id===view.id); return c?[c,(c.verlauf||[]).find(x=>x.id===eid)]:[null,null]; }
 
 /* ---------- Kalender über iPhone-Kurzbefehle ---------- */
-const SC_TERMIN='CRM Termin', SC_GEB='CRM Erinnerung', GEB_JAHRE=5, KAL_KEY='crm.kalname.v1';
+const SC_TERMIN='CRM Termin', SC_GEB='CRM Erinnerung', KAL_KEY='crm.kalname.v1', GEBAUTO_KEY='crm.gebauto.v1';
 let kalName=lsGet(KAL_KEY,'Benoit')||'Benoit';
+let gebAuto=lsGet(GEBAUTO_KEY,true)!==false;
 function copyText(t){
   let ok=false;
   try{
@@ -754,6 +756,7 @@ function buildIcs(events){
     }else{
       L.push('DTSTART:'+icsLocal(e.start),'DTEND:'+icsLocal(e.ende));
     }
+    if(e.jaehrlich) L.push('RRULE:FREQ=YEARLY');
     if(e.ort) L.push('LOCATION:'+icsEsc(e.ort));
     if(e.notiz) L.push('DESCRIPTION:'+icsEsc(e.notiz));
     L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(e.titel),
@@ -818,22 +821,23 @@ function bdayIn(g,yr){
 }
 function needsGeb(c){
   if(!c.geburtsdatum) return false;
-  return !c.gebKal||c.gebKal.datum!==c.geburtsdatum||c.gebKal.bis<new Date().getFullYear()+1;
+  return !c.gebKal||c.gebKal.datum!==c.geburtsdatum;
 }
-function gebEntries(c){
-  const t=todayYMD(); const y0=+c.geburtsdatum.slice(0,4);
-  let start=new Date().getFullYear(); if(bdayIn(c.geburtsdatum,start)<t) start++;
-  if(c.gebKal&&c.gebKal.datum===c.geburtsdatum) start=Math.max(start,c.gebKal.bis+1);
-  const end=new Date().getFullYear()+GEB_JAHRE, out=[];
-  for(let yr=start;yr<=end;yr++) out.push({titel:`🎂 ${displayName(c)} (${yr-y0})`,datum:bdayIn(c.geburtsdatum,yr),notiz:`Geboren am ${fmtYMD(c.geburtsdatum)}`});
-  return {out,end};
+function gebEvent(c){
+  const t=todayYMD(), y0=+c.geburtsdatum.slice(0,4);
+  let yr=new Date().getFullYear();
+  if(bdayIn(c.geburtsdatum,yr)<t) yr++;
+  const schalt=c.geburtsdatum.slice(5)==='02-29';
+  return {titel:`🎂 ${displayName(c)} (*${y0})`, ganztag:true, jaehrlich:true, datum:bdayIn(c.geburtsdatum,yr),
+    notiz:`Geboren am ${fmtYMD(c.geburtsdatum)}`+(schalt?'\nSchaltjahr-Geburtstag, hier auf den 28. Februar gelegt.':'')};
 }
 function sendBirthdays(list){
-  const termine=[];
-  list.forEach(c=>{ const r=gebEntries(c); termine.push(...r.out); c.gebKal={datum:c.geburtsdatum,bis:r.end}; touch(c); });
-  if(!termine.length){ toast('Alle Geburtstage sind bereits im Kalender.'); return; }
+  const events=[];
+  list.forEach(c=>{ if(!c.geburtsdatum) return; events.push(gebEvent(c)); c.gebKal={datum:c.geburtsdatum}; touch(c); });
+  if(!events.length){ toast('Alle Geburtstage sind bereits im Kalender.'); return; }
   persist(); render();
-  openCal('Geburtstage',termine.map(t=>({titel:t.titel,ganztag:true,datum:t.datum,notiz:t.notiz})),SC_GEB,{termine});
+  openCal(events.length===1?'Geburtstag von '+displayName(list[0]):events.length+' Geburtstage',
+    events, SC_GEB, {termine:events.map(e=>({titel:e.titel,datum:e.datum,notiz:e.notiz}))});
 }
 function sendReminders(){
   const due=dueList(); if(!due.length){ toast('Zurzeit ist nichts fällig.'); return; }
@@ -859,6 +863,7 @@ function kalView(){
     <ol class="steps">
       <li>Öffne <b>Einstellungen</b>, <b>Apps</b>, <b>Kalender</b>, <b>Standardkalender</b> und wähle <b>${esc(kalName)}</b>. Dann landen neue Einträge automatisch in deinem mit Outlook geteilten Kalender.</li>
       <li>Das war es. Wenn du im CRM auf «In Kalender eintragen» tippst, erscheint der Eintrag mit «Hinzufügen», und die Erinnerung ist schon gesetzt.</li>
+      <li>Erfasst du danach einen Kontakt mit Geburtstag, bietet dir die App den Eintrag sofort an. Ein Tipp, und der Geburtstag steht jedes Jahr im Kalender.</li>
     </ol>
     <button class="btn wide" data-act="testTermin">Testtermin für morgen erstellen</button>
     <button class="btn wide" style="margin-top:10px" data-act="testGeb">Ganztägigen Testeintrag erstellen</button>
@@ -901,7 +906,9 @@ function kalView(){
 
   <div class="group"><h2>Wenn etwas nicht klappt</h2>
     <p class="note">Nach den Tests sollten beide Einträge für morgen im richtigen Kalender stehen. Lösche sie danach wieder. Stimmt die Uhrzeit nicht, füge im ersten Kurzbefehl vor «Neues Ereignis hinzufügen» die Aktion «Datumsangaben aus Eingabe abrufen» für Beginn und Ende ein.</p>
-    <p class="note">Erinnerungen für fällige Kontakte trägst du in der Ansicht «Fällig» ein. Geburtstage werden jeweils für ${GEB_JAHRE} Jahre im Voraus eingetragen. Das CRM merkt sich, was schon gesendet wurde, damit nichts doppelt kommt. Falls ein Versand nicht geklappt hat, kannst du die Markierungen hier zurücksetzen.</p>
+    <p class="note">Geburtstage werden als jährlich wiederkehrender Eintrag angelegt. Du bestätigst sie einmal, danach erscheinen sie jedes Jahr von selbst. Das CRM merkt sich, welche schon eingetragen sind, damit nichts doppelt kommt.</p>
+    <p class="note">Erinnerungen für fällige Kontakte trägst du in der Ansicht «Fällig» ein, geplante Termine direkt beim Kontakt.</p>
+    <p class="note">Änderst oder löschst du später etwas im CRM, bleibt der alte Kalendereintrag stehen. Den passt du einmalig in der Kalender-App an. Neue Einträge kommen immer frisch aus dem CRM.</p>
     <button class="btn danger wide" data-act="gebReset">Geburtstags-Markierungen zurücksetzen</button>
   </div>`;
 }
@@ -1008,7 +1015,8 @@ function saveForm(){
     if(data.erstkontaktDatum){
       c.verlauf.push({id:uid(),datum:data.erstkontaktDatum,text:['Erstkontakt'+(data.erstkontakt?': '+data.erstkontakt:''),n].filter(Boolean).join('\n')});
     }
-    contacts.push(c); persist(); toast('Kontakt gespeichert'); go({name:'detail',id:c.id});
+    contacts.push(c); persist(); go({name:'detail',id:c.id});
+    if(c.geburtsdatum&&gebAuto) sendBirthdays([c]); else toast('Kontakt gespeichert');
   }else{
     const c=contacts.find(x=>x.id===view.id); if(!c) return;
     Object.assign(c,data,{extra,geaendert:now}); persist(); toast('Änderungen gespeichert'); go({name:'detail',id:c.id});
@@ -1258,7 +1266,8 @@ function dataView(){
   <div class="group">
     <h2>Kalender</h2>
     <p class="note">Geburtstage und geplante Kontakte kommen über zwei Kurzbefehle in deinen iPhone-Kalender. Die Einrichtung machst du einmal.</p>
-    ${(()=>{ const n=contacts.filter(needsGeb).length; return `<button class="btn primary wide" data-act="gebAll" ${n?'':'disabled'}>${n?`${n} Geburtstage in Kalender eintragen`:'Alle Geburtstage sind im Kalender'}</button>`; })()}
+    ${(()=>{ const n=contacts.filter(needsGeb).length; return `<button class="btn primary wide" data-act="gebAll" ${n?'':'disabled'}>${n?(n===1?'Einen Geburtstag':n+' Geburtstage')+' in Kalender eintragen':'Alle Geburtstage sind im Kalender'}</button>`; })()}
+    <label class="check"><input type="checkbox" id="gebAuto" ${gebAuto?'checked':''}> Geburtstag beim Erfassen eines Kontakts gleich anbieten</label>
     <button class="btn wide" style="margin-top:10px" data-act="kal">Kalender einrichten und testen</button>
   </div>
   <div class="group">
@@ -1282,6 +1291,7 @@ function dataView(){
     <h2>Wo sind meine Daten?</h2>
     <p class="note" style="margin-bottom:4px">${ghReady()?`Deine Kontakte liegen auf diesem Gerät und in deinem privaten GitHub-Repository <b>${esc(gh.owner)}/${esc(gh.repo)}</b>. Sonst nirgends, insbesondere nicht bei Claude. Jede Änderung wird dort als Version gespeichert, du kannst also auch ältere Stände wiederherstellen.`:`Deine Kontakte werden nur auf diesem Gerät gespeichert, in dem Browser oder der App, mit der du diese Seite öffnest. Sie werden nirgends hochgeladen. Richte oben den Abgleich ein, wenn du auf iPhone und Computer denselben Stand willst.`}</p>
   </div>
+  <p class="note" style="text-align:center;margin:18px 0">App-Version: ${esc(APP_VERSION)}</p>
   <div class="group">
     <h2>Alle Kontakte löschen</h2>
     <p class="note">Entfernt alle Kontakte von diesem Gerät. Exportiere vorher ein Backup.</p>
@@ -1737,6 +1747,8 @@ function after(){
   });
   document.querySelectorAll('[data-map]').forEach(sel=>sel.addEventListener('change',()=>{ importState.mapping[+sel.dataset.map]=sel.value; }));
   const sd=$('#skipDup'); if(sd) sd.addEventListener('change',()=>{ importState.skipDup=sd.checked; });
+  const ga=$('#gebAuto');
+  if(ga) ga.addEventListener('change',()=>{ gebAuto=ga.checked; lsSet(GEBAUTO_KEY,gebAuto); });
   const kn=$('#kalName');
   if(kn) kn.addEventListener('change',()=>{ kalName=kn.value.trim()||'Benoit'; lsSet(KAL_KEY,kalName); render(); });
   const sh=$('#sheetSel'); if(sh) sh.addEventListener('change',()=>{ importState.sheet=sh.value; readSheet(); render(); });
