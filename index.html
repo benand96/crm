@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mein CRM</title>
+<style>
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --field:#F6F8FA; --ink:#16202A; --muted:#5B6875;
+  --line:#D5DDE4; --accent:#1D5C86; --accent-ink:#FFFFFF; --accent-soft:#E1ECF4; --danger:#B3261E; --warn:#9A5B00;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1419; --surface:#18212A; --field:#121A21; --ink:#E7ECF0; --muted:#98A5B1;
+    --line:#2A3540; --accent:#7AB2DE; --accent-ink:#0F1419; --accent-soft:#1C2E3D; --danger:#F2877F; --warn:#E3B341;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1419; --surface:#18212A; --field:#121A21; --ink:#E7ECF0; --muted:#98A5B1;
+  --line:#2A3540; --accent:#7AB2DE; --accent-ink:#0F1419; --accent-soft:#1C2E3D; --danger:#F2877F; --warn:#E3B341;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+#app{max-width:680px;margin:0 auto;padding:0 16px 48px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{padding:14px 0 10px}
+.bar-row{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:40px}
+h1{font-size:2.1rem;line-height:1.1;letter-spacing:-.02em;margin:14px 0 12px;font-weight:700}
+h1 .count{font-size:1rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:6px}
+h2{font-size:1.15rem;margin:0 0 6px}
+.link{background:none;border:0;color:var(--accent);padding:8px 0;font-weight:500}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--danger)}
+.btn.wide{width:100%;padding:13px}
+.btn.small{padding:6px 10px;font-size:.9rem}
+.btn[disabled]{opacity:.5}
+
+input[type=search],.in,select,textarea{
+  width:100%;border:1px solid var(--line);background:var(--field);border-radius:10px;
+  padding:10px 12px;font-size:16px;
+}
+input[type=date].in{min-height:44px;-webkit-appearance:none;appearance:none}
+textarea{resize:vertical;min-height:90px}
+
+/* Ansicht wählen */
+.seg{display:grid;grid-template-columns:repeat(4,1fr);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:3px;margin:10px 0 4px}
+.seg button{border:0;background:none;border-radius:8px;padding:7px 2px;font-size:.84rem;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.hint{color:var(--muted);font-size:.85rem;margin:6px 2px 0}
+#ortSel{margin-top:8px}
+
+/* Liste */
+.sec-h{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:2;
+  background:var(--bg);color:var(--accent);font-weight:700;font-size:.95rem;padding:12px 4px 4px;
+  display:flex;justify-content:space-between;align-items:baseline;
+}
+.sec-h small{color:var(--muted);font-weight:500}
+.rows{background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.row{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:none;border:0;padding:10px 12px;border-top:1px solid var(--line);
+}
+.row:first-child{border-top:0}
+.row:active{background:var(--accent-soft)}
+.av{
+  flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;font-weight:600;font-size:.9rem;letter-spacing:.02em;
+}
+.rt{min-width:0;flex:1;display:flex;flex-direction:column}
+.nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{color:var(--muted);font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.when{flex:none;font-size:.82rem;color:var(--muted);text-align:right;margin-right:14px}
+.when.old{color:var(--warn);font-weight:600}
+.rail{
+  position:fixed;right:max(2px,env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:center;z-index:5;padding:4px 0;
+}
+.rail button{background:none;border:0;color:var(--accent);font-size:.7rem;font-weight:700;padding:1px 6px;line-height:1.25}
+.empty{text-align:center;padding:48px 12px;color:var(--muted)}
+.empty .actions{display:flex;flex-direction:column;gap:10px;max-width:280px;margin:20px auto 0}
+
+/* Detail */
+.hero{text-align:center;padding:8px 0 16px}
+.hero .av{width:84px;height:84px;font-size:1.7rem;margin:0 auto 12px}
+.hero .nm{font-size:1.5rem;white-space:normal}
+.hero .sub{white-space:normal;font-size:1rem}
+.quick{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.quick a{
+  text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:9px 16px;font-weight:600;min-width:92px;text-align:center;
+}
+.lc{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:14px}
+.lc.old{border-left-color:var(--warn)}
+.lc-k{font-size:.85rem;color:var(--muted)}
+.lc-v{font-size:1.35rem;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+.lc-r{color:var(--muted);margin-bottom:12px}
+.lc.old .lc-r{color:var(--warn);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 14px;margin-bottom:14px}
+.card-h{display:flex;justify-content:space-between;align-items:center;padding:12px 0 6px}
+.card-h h2{margin:0}
+.kv{padding:10px 0;border-top:1px solid var(--line)}
+.kv:first-child{border-top:0}
+.kv .k{font-size:.82rem;color:var(--muted)}
+.kv .v{word-break:break-word;white-space:pre-wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.chip{background:var(--accent-soft);border-radius:999px;padding:3px 10px;font-size:.9rem}
+.entry{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:11px 0}
+.entry .d{font-weight:700;font-size:.92rem}
+.entry .d small{font-weight:500;color:var(--muted);margin-left:6px}
+.art{display:inline-block;background:var(--accent-soft);border-radius:999px;padding:1px 8px;font-size:.78rem;font-weight:600;margin-left:6px;vertical-align:1px}
+.duebtn{margin:0 0 14px}
+.entry .t{white-space:pre-wrap;word-break:break-word;margin-top:2px}
+.entry .t.none{color:var(--muted);font-style:italic}
+.entry.future .d{color:var(--accent)}
+.entry-form{border-top:1px solid var(--line);padding:6px 0 14px}
+.lc .entry-form{border-top:0;padding:0}
+.btns{display:flex;gap:10px;margin-top:12px}
+.btns .btn{flex:1}
+.meta{color:var(--muted);font-size:.85rem;text-align:center;margin:18px 0}
+
+/* Formular */
+.group{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px 14px;margin-bottom:14px}
+.group h3{font-size:.95rem;margin:2px 0 4px;color:var(--muted);font-weight:600}
+.f{display:block;margin-top:10px}
+.f span{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.ort-row{display:grid;grid-template-columns:92px 1fr 40px;gap:8px;margin-top:10px;align-items:center}
+.ort-row .x{border:0;background:none;color:var(--muted);font-size:1.4rem;line-height:1;height:40px}
+.addlink{background:none;border:0;color:var(--accent);font-weight:600;padding:10px 0 0}
+details.paste{background:var(--accent-soft);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+details.paste summary{font-weight:600;cursor:pointer}
+.how{margin:10px 0;padding-left:20px;font-size:.93rem}
+.how li{margin:3px 0}
+.paste .btn{margin-top:10px}
+.scan{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 12px}
+.scan .filebtn{margin:0}
+.scan .btn{margin-top:0;width:100%}
+.scanbox{display:flex;gap:12px;align-items:center;margin:0 0 12px}
+.scanbox img{width:76px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none;background:var(--field)}
+.scanbox .st{min-width:0;font-size:.9rem}
+.scanbox .st b{display:block}
+.prog{height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+@media (prefers-reduced-motion: reduce){.prog i{transition:none}}
+
+.note{color:var(--muted);font-size:.93rem;margin:4px 0 12px}
+.warn{background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:.93rem}
+.filebtn{position:relative;display:block}
+.filebtn input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.map-row{padding:10px 0;border-top:1px solid var(--line)}
+.map-row:first-child{border-top:0}
+.map-row .h{font-weight:600}
+.map-row .ex{color:var(--muted);font-size:.85rem;margin:2px 0 6px;word-break:break-word}
+.check{display:flex;gap:10px;align-items:center;margin:12px 0}
+.check input{width:20px;height:20px;flex:none}
+
+.plan{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;padding:14px;margin-bottom:14px}
+.pl-item{padding:10px 0;border-top:1px solid var(--line)}
+.pl-item:first-of-type{border-top:0;padding-top:4px}
+.pl-when{font-weight:700;font-size:1.1rem}
+.pl-what{white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+.pl-meta{color:var(--muted);font-size:.9rem}
+.due{color:var(--warn);font-weight:600;margin:8px 0 0}
+.status{font-size:.85rem;color:var(--muted);margin-top:4px}
+.status button{background:none;border:0;color:var(--accent);font-weight:600;padding:0;font-size:.85rem}
+.steps{padding-left:22px;margin:8px 0 4px}
+.steps li{margin:6px 0}
+.steps b{font-weight:600}
+#sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--surface);border-top:1px solid var(--line);
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px rgba(0,0,0,.15);
+}
+#sheet[hidden]{display:none}
+#sheet .in-sheet{max-width:680px;margin:0 auto}
+#sheet p{margin:0 0 10px;font-size:.93rem}
+#sheet .btns{margin-top:0}
+#sheet a.btn{text-decoration:none;text-align:center;color:var(--accent-ink)}
+.ghbar{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:.85rem;color:var(--muted)}
+.ghdot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.ghdot.ok{background:#2E7D32}
+.ghdot.err{background:var(--danger)}
+.ghdot.sync{background:var(--accent);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){.ghdot.sync{animation:none}}
+.ghbar button{background:none;border:0;color:var(--accent);font-weight:600;padding:2px 0;font-size:.85rem;margin-left:auto}
+#toast{
+  position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:.93rem;
+  max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion: reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="sheet" hidden role="dialog" aria-label="Kalender"></div>
+<script id="seed" type="application/json">null</script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- Felder ---------- */
+const FIELDS = [
+  {k:'vorname',  l:'Vorname',  syn:['vorname','first name','firstname','given name','prenom']},
+  {k:'nachname', l:'Nachname', syn:['nachname','last name','lastname','surname','familienname']},
+  {k:'geburtsdatum', l:'Geburtsdatum', date:true, syn:['geburtsdatum','geburtstag','birthday','date of birth','geb','geb datum','geboren','geburtsdat']},
+  {k:'beruf',    l:'Beruf',    syn:['beruf','funktion','position','job','titel','tatigkeit','job title','rolle','beruf funktion']},
+  {k:'hobbys',   l:'Hobbys',   syn:['hobbys','hobbies','hobby','interessen','freizeit']},
+  {k:'mobile',   l:'Mobile',   syn:['mobile','mobil','natel','handy','mobiltelefon','cell','mobile phone','mobilnummer','natel nr']},
+  {k:'telefon',  l:'Telefon',  syn:['telefon','tel','phone','telefonnummer','festnetz','telefon privat','telefon geschaft','tel nr']},
+  {k:'email',    l:'E-Mail',   syn:['e mail','email','mail','e mail adresse','email adresse']},
+  {k:'erstkontakt', l:'Erstkontakt', syn:['erstkontakt','kennengelernt','kennengelernt bei','wo kennengelernt','quelle','herkunft','erster kontakt','kennengelernt wo']},
+  {k:'erstkontaktDatum', l:'Erstkontakt Datum', date:true, syn:['erstkontakt datum','kennengelernt am','datum erstkontakt','datum kennengelernt']},
+  {k:'firma',    l:'Firma',    syn:['firma','unternehmen','company','organisation','organization','arbeitgeber']},
+  {k:'adresse',  l:'Adresse',  syn:['adresse','strasse','address','street','anschrift']},
+  {k:'web',      l:'Webseite', syn:['webseite','website','web','homepage','url']},
+  {k:'infos',    l:'Weitere Infos', syn:['weitere infos','info','infos','allgemein','sonstiges']}
+];
+const FIELD = Object.fromEntries(FIELDS.map(f=>[f.k,f]));
+const SPECIAL = [
+  {k:'orte', l:'Wohnort(e)', syn:['wohnort','wohnorte','ort','orte','stadt','city','gemeinde','wohnort e','plz ort']},
+  {k:'plz', l:'PLZ', syn:['plz','postleitzahl','zip','postal code']},
+  {k:'letzterKontakt', l:'Letzter Kontakt (Datum)', syn:['letzter kontakt','zuletzt kontaktiert','last contact','datum letzter kontakt','letzter kontakt am']},
+  {k:'verlauf', l:'Bemerkungen / Kontaktverlauf', syn:['bemerkung','bemerkungen','kontaktverlauf','verlauf','kommentar','kommentare','notizen','notiz','notes','historie']}
+];
+const STORE_KEY='crm.kontakte.v2', OLD_KEY='crm.kontakte.v1', UI_KEY='crm.ui.v1';
+
+/* ---------- Helfer ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);
+const isDate = v => Object.prototype.toString.call(v)==="[object Date]";
+const pad = n => String(n).padStart(2,'0');
+const ymdLocal = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayYMD = () => ymdLocal(new Date());
+const ymdToDate = y => { const [a,b,c]=y.split('-').map(Number); return new Date(a,b-1,c); };
+const fmtYMD = y => { if(!y) return ''; const [a,b,c]=y.split('-'); return `${c}.${b}.${a}`; };
+const fmtLong = y => ymdToDate(y).toLocaleDateString('de-CH',{day:'numeric',month:'long',year:'numeric'});
+const fmtISO = iso => { try{ return new Date(iso).toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return ''; } };
+const daysSince = y => Math.round((ymdToDate(todayYMD())-ymdToDate(y))/86400000);
+
+function relLong(y){
+  const d=daysSince(y);
+  if(d<0) return d===-1?'morgen':`in ${-d} Tagen`;
+  if(d===0) return 'heute'; if(d===1) return 'gestern';
+  if(d<14) return `vor ${d} Tagen`;
+  if(d<60) return `vor ${Math.round(d/7)} Wochen`;
+  const m=Math.round(d/30.44); if(m<24) return `vor ${m} Monaten`;
+  return `vor ${Math.floor(d/365.25)} Jahren`;
+}
+function relShort(y){
+  const d=daysSince(y);
+  if(d<=0) return 'heute'; if(d===1) return 'gestern';
+  if(d<14) return `${d} Tage`;
+  if(d<60) return `${Math.round(d/7)} Wochen`;
+  const m=Math.round(d/30.44); if(m<24) return m===1?'1 Monat':`${m} Monate`;
+  const j=Math.floor(d/365.25); return j===1?'1 Jahr':`${j} Jahre`;
+}
+function mkDate(y,m,d){
+  if(y<1900||y>2100) return null;
+  const dt=new Date(y,m-1,d);
+  if(dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d) return null;
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+function fixYear(y,len){ if(len===4) return y; const cy=new Date().getFullYear()%100; return y>cy?1900+y:2000+y; }
+function parseDateAny(v){
+  if(v==null||v==='') return null;
+  if(isDate(v)){ if(isNaN(v)) return null; return ymdLocal(new Date(v.getTime()+12*3600e3)); }
+  if(typeof v==='number'){
+    if(v>1000&&v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
+    return null;
+  }
+  const s=String(v).trim(); let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\b/))) return mkDate(+m[1],+m[2],+m[3]);
+  if((m=s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4}|\d{2})\b/))) return mkDate(fixYear(+m[3],m[3].length),+m[2],+m[1]);
+  if((m=s.match(/^(\d{2})(\d{2})(\d{4})$/))) return mkDate(+m[3],+m[2],+m[1]);
+  if((m=s.match(/^(\d{2})(\d{2})(\d{2})$/))) return mkDate(fixYear(+m[3],2),+m[2],+m[1]);
+  return null;
+}
+function age(g){
+  const b=ymdToDate(g), t=new Date();
+  let a=t.getFullYear()-b.getFullYear();
+  if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) a--;
+  return a;
+}
+function daysToBirthday(g){
+  const b=ymdToDate(g), t=ymdToDate(todayYMD());
+  let n=new Date(t.getFullYear(),b.getMonth(),b.getDate());
+  if(n<t) n=new Date(t.getFullYear()+1,b.getMonth(),b.getDate());
+  return Math.round((n-t)/86400000);
+}
+
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+/* ---------- Speicher ---------- */
+const TOMB_KEY='crm.tombs.v1';
+let contacts=[], storageOk=true, tombs={};
+function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function touch(c){ c.geaendert=new Date().toISOString(); }
+function markTomb(id){ tombs[id]=new Date().toISOString(); lsSet(TOMB_KEY,tombs); }
+function migrate(c){
+  c.extra=c.extra||{};
+  if(!Array.isArray(c.orte)){ c.orte=[]; if(c.ort||c.plz) c.orte.push({plz:c.plz||'',ort:c.ort||''}); }
+  if(c.funktion&&!c.beruf) c.beruf=c.funktion;
+  if(c.strasse&&!c.adresse) c.adresse=c.strasse;
+  if(c.notizen&&!c.infos) c.infos=c.notizen;
+  if(c.land) c.extra.Land=c.land;
+  ['funktion','strasse','plz','ort','notizen','land'].forEach(k=>delete c[k]);
+  c.verlauf=Array.isArray(c.verlauf)?c.verlauf:[];
+  if(!c.geaendert) c.geaendert=c.erstellt||'1970-01-01T00:00:00.000Z';
+  return c;
+}
+let pendingSeed=null;
+function readSeed(){
+  const el=document.getElementById('seed'); if(!el) return null;
+  try{ const d=JSON.parse(el.textContent||'null'); return (Array.isArray(d)&&d.length)?d.map(migrate):null; }catch(e){ return null; }
+}
+function load(){
+  tombs=lsGet(TOMB_KEY,{})||{};
+  try{
+    let raw=localStorage.getItem(STORE_KEY);
+    if(!raw){ const old=localStorage.getItem(OLD_KEY); if(old){ raw=old; } }
+    const d=raw?JSON.parse(raw):[];
+    contacts=(Array.isArray(d)?d:[]).map(migrate);
+    if(!localStorage.getItem(STORE_KEY)&&contacts.length) persist();
+  }catch(e){ storageOk=false; contacts=[]; }
+  const seed=readSeed();
+  if(seed){
+    if(!contacts.length){ contacts=seed; persist(); }
+    else if(JSON.stringify(seed)!==JSON.stringify(contacts)) pendingSeed=seed;
+  }
+}
+function persist(){
+  try{ localStorage.setItem(STORE_KEY,JSON.stringify(contacts)); storageOk=true; }
+  catch(e){ storageOk=false; toast('Speichern auf diesem Gerät nicht möglich. Exportiere deine Kontakte als Excel.'); }
+  ghQueue();
+}
+function loadUI(){ try{ return JSON.parse(localStorage.getItem(UI_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function saveUI(){ try{ localStorage.setItem(UI_KEY,JSON.stringify({mode})); }catch(e){} }
+
+/* ---------- Anzeige-Logik ---------- */
+function displayName(c){
+  const n=[c.vorname,c.nachname].filter(Boolean).join(' ').trim();
+  return n || c.firma || c.email || 'Ohne Namen';
+}
+function initials(c){
+  let s=((c.vorname||'').trim()[0]||'')+((c.nachname||'').trim()[0]||'');
+  if(!s) s=(c.firma||c.email||'?').trim().slice(0,2);
+  return s.toUpperCase();
+}
+function avColor(c){
+  const s=displayName(c); let h=0;
+  for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))%360;
+  return `hsl(${h} 32% 44%)`;
+}
+const ortNames = c => (c.orte||[]).map(o=>o.ort).filter(Boolean);
+function sortKey(c){ return norm((c.nachname||'')+' '+(c.vorname||'')+' '+(c.firma||'')) || norm(displayName(c)); }
+function letterOf(c){
+  const ch=norm(c.nachname||c.vorname||c.firma||c.email||'').charAt(0).toUpperCase();
+  return /[A-Z]/.test(ch)?ch:'#';
+}
+const RHY=[[0,'Keine Wiedervorlage'],[1,'Jeden Monat'],[2,'Alle 2 Monate'],[3,'Alle 3 Monate'],[6,'Alle 6 Monate'],[12,'Einmal im Jahr'],[24,'Alle 2 Jahre']];
+const ARTEN=['Treffen','Telefon','E-Mail','Nachricht','Sonstiges'];
+function addMonths(ymd,m){
+  const d=ymdToDate(ymd), day=d.getDate();
+  d.setMonth(d.getMonth()+m);
+  if(d.getDate()<day) d.setDate(0);
+  return ymdLocal(d);
+}
+function dueOf(c){
+  if(!c.rhythmus) return null;
+  if(plannedOf(c).length) return null;
+  const base=lastContact(c)||c.erstkontaktDatum||(c.erstellt?ymdLocal(new Date(c.erstellt)):todayYMD());
+  return addMonths(base,+c.rhythmus);
+}
+function sortedVerlauf(c){ return (c.verlauf||[]).filter(e=>!e.geplant).sort((a,b)=>b.datum.localeCompare(a.datum)); }
+function plannedOf(c){ return (c.verlauf||[]).filter(e=>e.geplant).sort((a,b)=>(a.datum+(a.zeit||'')).localeCompare(b.datum+(b.zeit||''))); }
+function lastContact(c){
+  const t=todayYMD(); let best=null;
+  for(const e of c.verlauf||[]) if(!e.geplant && e.datum<=t && (!best||e.datum>best)) best=e.datum;
+  return best;
+}
+const isOld = y => !y || daysSince(y)>180;
+function haystack(c){
+  return norm([...FIELDS.map(f=>c[f.k]||''),...ortNames(c),...(c.orte||[]).map(o=>o.plz),
+    ...(c.verlauf||[]).map(e=>e.text),...Object.values(c.extra||{})].join(' '));
+}
+
+/* ---------- Zustand ---------- */
+let view={name:'list'}, query='', listScroll=0, importState=null, mode=loadUI().mode||'name', ortFilter='';
+
+let pendingRender=false;
+function softRender(){
+  if(view.name==='edit'||view.form){ pendingRender=true; return; }
+  render();
+}
+function go(v){
+  if(view.name==='list') listScroll=window.scrollY;
+  pendingRender=false; view=v; render();
+  window.scrollTo(0, v.name==='list'?listScroll:0);
+}
+function render(){
+  const app=$('#app');
+  const views={list:listView,detail:detailView,edit:editView,data:dataView,map:mapView,kal:kalView};
+  app.innerHTML=(views[view.name]||listView)();
+  after();
+}
+
+/* ---------- Liste ---------- */
+function listView(){
+  return `
+  <header class="bar">
+    <div class="bar-row">
+      <button class="link" data-act="data">Daten und Kalender</button>
+      <button class="btn primary" data-act="new">Neuer Kontakt</button>
+    </div>
+    <h1>Kontakte<span class="count">${contacts.length}</span></h1>
+    ${contacts.length?`
+      <input id="search" type="search" placeholder="Name, Ort, Hobby oder Notiz suchen" value="${esc(query)}" autocomplete="off" aria-label="Kontakte suchen">
+      <div class="seg" role="group" aria-label="Sortierung">
+        <button data-act="mode" data-m="name" aria-pressed="${mode==='name'}">Name</button>
+        <button data-act="mode" data-m="ort" aria-pressed="${mode==='ort'}">Ort</button>
+        <button data-act="mode" data-m="kontakt" aria-pressed="${mode==='kontakt'}">Kontakt</button>
+        <button data-act="mode" data-m="faellig" aria-pressed="${mode==='faellig'}">Fällig</button>
+      </div>
+      ${mode==='ort'?ortSelect():''}
+      ${mode==='ort'||mode==='kontakt'?`<p class="hint">Innerhalb jeder Gruppe steht zuoberst, wer am längsten nichts von dir gehört hat.</p>`:''}
+    `:''}
+    ${ghBar()}
+  </header>
+  ${pendingSeed?`<div class="warn"><p style="margin:0 0 8px">Diese Datei enthält ${pendingSeed.length} gespeicherte Kontakte, auf diesem Gerät sind ${contacts.length} erfasst.</p>
+    <div class="btns"><button class="btn" data-act="seedIgnore">Ignorieren</button><button class="btn primary" data-act="seedUse">Aus Datei übernehmen</button></div></div>`:''}
+  ${storageOk?'':'<p class="warn">Dieser Browser erlaubt kein dauerhaftes Speichern. Änderungen gehen beim Schliessen verloren, exportiere sie unter «Daten und Kalender».</p>'}
+  <main id="list">${listBody()}</main>`;
+}
+function allOrte(){
+  const m=new Map();
+  contacts.forEach(c=>new Set(ortNames(c).map(norm)).forEach(k=>{
+    const disp=ortNames(c).find(o=>norm(o)===k);
+    const e=m.get(k)||{name:disp,n:0}; e.n++; m.set(k,e);
+  }));
+  return [...m.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,'de'));
+}
+function ortSelect(){
+  return `<select id="ortSel" aria-label="Wohnort wählen">
+    <option value="">Alle Wohnorte</option>
+    ${allOrte().map(([k,e])=>`<option value="${esc(k)}" ${k===ortFilter?'selected':''}>${esc(e.name)} (${e.n})</option>`).join('')}
+  </select>`;
+}
+const byOldest = (a,b)=>{ const x=lastContact(a)||'', y=lastContact(b)||''; return x.localeCompare(y)||sortKey(a).localeCompare(sortKey(b),'de'); };
+
+function listBody(){
+  if(!contacts.length){
+    return `<div class="empty">
+      <h2>Noch keine Kontakte</h2>
+      <p>Erfasse deinen ersten Kontakt oder übernimm deine bestehende Excel-Liste.</p>
+      <div class="actions">
+        <button class="btn primary wide" data-act="new">Kontakt erfassen</button>
+        <button class="btn wide" data-act="data">Excel-Liste importieren</button>
+      </div></div>`;
+  }
+  const q=norm(query);
+  const list=contacts.filter(c=>!q||haystack(c).includes(q));
+  if(!list.length) return `<div class="empty"><p>Keine Treffer für «${esc(query)}».</p></div>`;
+  let groups=[];
+  if(mode==='faellig') return faelligBody(list);
+  if(mode==='ort'){
+    const m=new Map(); const none=[];
+    list.forEach(c=>{
+      const keys=[...new Set(ortNames(c).map(norm))];
+      if(!keys.length){ none.push(c); return; }
+      keys.forEach(k=>{ if(!m.has(k)) m.set(k,{title:ortNames(c).find(o=>norm(o)===k),items:[]}); m.get(k).items.push(c); });
+    });
+    groups=[...m.entries()].filter(([k])=>!ortFilter||k===ortFilter)
+      .sort((a,b)=>a[1].title.localeCompare(b[1].title,'de')).map(([k,g])=>({id:'o-'+k,title:g.title,items:g.items.sort(byOldest)}));
+    if(none.length&&!ortFilter) groups.push({id:'o-none',title:'Ohne Wohnort',items:none.sort(byOldest)});
+    if(!groups.length) return `<div class="empty"><p>Keine Treffer in diesem Wohnort.</p></div>`;
+  }else if(mode==='kontakt'){
+    const b=[['Noch kein Kontakt erfasst',[]],['Länger als 1 Jahr',[]],['6 bis 12 Monate',[]],['3 bis 6 Monate',[]],['1 bis 3 Monate',[]],['Letzte 30 Tage',[]]];
+    list.forEach(c=>{
+      const l=lastContact(c); const d=l?daysSince(l):null;
+      const i=d==null?0:d>365?1:d>180?2:d>90?3:d>30?4:5; b[i][1].push(c);
+    });
+    groups=b.filter(x=>x[1].length).map(([t,it],i)=>({id:'k'+i,title:t,items:it.sort(byOldest)}));
+  }else{
+    const m={};
+    list.forEach(c=>{ const l=letterOf(c); (m[l]=m[l]||[]).push(c); });
+    groups=Object.keys(m).sort((a,b)=>a==='#'?1:b==='#'?-1:a.localeCompare(b))
+      .map(l=>({id:'sec-'+(l==='#'?'num':l),letter:l,title:l,items:m[l].sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'de'))}));
+  }
+  const html=groups.map(g=>`
+    <section id="${esc(g.id)}">
+      <div class="sec-h">${esc(g.title)}${mode!=='name'?`<small>${g.items.length}</small>`:''}</div>
+      <div class="rows">${g.items.map(rowHtml).join('')}</div>
+    </section>`).join('');
+  const rail=(mode==='name'&&groups.length>4)?`<nav class="rail" aria-label="Alphabet">${groups.map(g=>`<button data-act="jump" data-l="${esc(g.id)}">${esc(g.letter)}</button>`).join('')}</nav>`:'';
+  return html+rail;
+}
+function rowHtml(c,whenTxt,warn){
+  const l=lastContact(c);
+  const np=plannedOf(c)[0];
+  const sub=[np?'geplant '+fmtYMD(np.datum):'',c.beruf, mode==='ort'?'':ortNames(c).join(', ')].filter(Boolean).join(', ');
+  const when=whenTxt!=null?whenTxt:(l?relShort(l):'kein Kontakt');
+  const alarm=whenTxt!=null?!!warn:isOld(l);
+  return `<button class="row" data-act="open" data-id="${esc(c.id)}">
+    <span class="av" style="background:${avColor(c)}" aria-hidden="true">${esc(initials(c))}</span>
+    <span class="rt"><span class="nm">${esc(displayName(c))}</span>${sub?`<span class="sub">${esc(sub)}</span>`:''}</span>
+    <span class="when ${alarm?'old':''}">${esc(when)}</span>
+  </button>`;
+}
+function dueList(){
+  const t=todayYMD(), grenze=addDays(t,14);
+  return contacts.map(c=>({c,d:dueOf(c)})).filter(x=>x.d&&x.d<=grenze).sort((a,b)=>a.d.localeCompare(b.d));
+}
+function bdayList(){
+  return contacts.filter(c=>c.geburtsdatum&&daysToBirthday(c.geburtsdatum)<=14)
+    .sort((a,b)=>daysToBirthday(a.geburtsdatum)-daysToBirthday(b.geburtsdatum));
+}
+function dueWhen(d){
+  const n=daysSince(d);
+  if(n>0) return n===1?'seit 1 Tag':'seit '+n+' Tagen';
+  if(n===0) return 'heute';
+  return n===-1?'morgen':'in '+(-n)+' Tagen';
+}
+function faelligBody(list){
+  const ids=new Set(list.map(c=>c.id));
+  const due=dueList().filter(x=>ids.has(x.c.id));
+  const bd=bdayList().filter(c=>ids.has(c.id));
+  if(!due.length&&!bd.length){
+    const ohne=contacts.filter(c=>!c.rhythmus).length;
+    return `<div class="empty"><h2>Nichts fällig</h2>
+      <p>${contacts.some(c=>c.rhythmus)?'Du bist auf dem aktuellen Stand.':'Du hast noch bei keinem Kontakt eine Wiedervorlage eingestellt.'}</p>
+      ${ohne?`<p class="note">Öffne einen Kontakt, tippe auf «Bearbeiten» und wähle unter «Wiedervorlage», wie oft du Kontakt haben willst.</p>`:''}</div>`;
+  }
+  let html='';
+  if(due.length){
+    const t=todayYMD();
+    const ue=due.filter(x=>x.d<t), heute=due.filter(x=>x.d===t), bald=due.filter(x=>x.d>t);
+    [['Überfällig',ue],['Heute',heute],['In den nächsten 14 Tagen',bald]].forEach(([title,arr],i)=>{
+      if(!arr.length) return;
+      html+=`<section><div class="sec-h">${title}<small>${arr.length}</small></div>
+        <div class="rows">${arr.map(x=>rowHtml(x.c,dueWhen(x.d),x.d<=t)).join('')}</div></section>`;
+    });
+    html+=`<button class="btn wide duebtn" style="margin-top:14px" data-act="sendErin">${due.length===1?'Erinnerung':due.length+' Erinnerungen'} in den Kalender eintragen</button>`;
+  }
+  if(bd.length){
+    html+=`<section><div class="sec-h">Geburtstag steht an<small>${bd.length}</small></div>
+      <div class="rows">${bd.map(c=>{const n=daysToBirthday(c.geburtsdatum);
+        return rowHtml(c,n===0?'heute':n===1?'morgen':'in '+n+' Tagen',n<=1);}).join('')}</div></section>`;
+  }
+  return html;
+}
+
+/* ---------- Detail ---------- */
+function telHref(n){ return 'tel:'+String(n).replace(/[^\d+]/g,''); }
+function webHref(u){ return /^https?:\/\//i.test(u)?u:'https://'+u; }
+function entryForm(e){
+  return `<div class="entry-form">
+    <div class="two">
+      <label class="f"><span>Datum</span><input class="in" type="date" id="eDate" value="${esc(e?e.datum:todayYMD())}"></label>
+      <label class="f"><span>Art</span><select id="eArt">${ARTEN.map(a=>`<option ${((e&&e.art)||'Treffen')===a?'selected':''}>${a}</option>`).join('')}</select></label>
+    </div>
+    <label class="f"><span>Was wurde besprochen?</span><textarea id="eText" placeholder="Zum Beispiel: Kaffee in Baden, plant Umzug nach Bern, im Frühling wieder melden">${esc(e?e.text:'')}</textarea></label>
+    <div class="btns"><button class="btn" data-act="cancelEntry">Abbrechen</button><button class="btn primary" data-act="saveEntry">${e?'Änderung speichern':'Eintragen'}</button></div>
+    ${e?`<button class="btn danger wide" style="margin-top:10px" data-act="delEntry">Eintrag löschen</button>`:''}
+  </div>`;
+}
+function detailView(){
+  const c=contacts.find(x=>x.id===view.id);
+  if(!c) return `<div class="empty"><p>Dieser Kontakt existiert nicht mehr.</p><button class="btn" data-act="list">Zur Liste</button></div>`;
+  const phone=c.mobile||c.telefon;
+  const quick=[
+    phone?`<a href="${esc(telHref(phone))}" target="_blank" rel="noopener">Anrufen</a>`:'',
+    c.email?`<a href="mailto:${esc(c.email)}" target="_blank" rel="noopener">E-Mail</a>`:''
+  ].join('');
+  const l=lastContact(c);
+  const kv=[];
+  if(c.mobile) kv.push(['Mobile',`<a href="${esc(telHref(c.mobile))}" target="_blank" rel="noopener">${esc(c.mobile)}</a>`]);
+  if(c.telefon) kv.push(['Telefon',`<a href="${esc(telHref(c.telefon))}" target="_blank" rel="noopener">${esc(c.telefon)}</a>`]);
+  if(c.email) kv.push(['E-Mail',`<a href="mailto:${esc(c.email)}" target="_blank" rel="noopener">${esc(c.email)}</a>`]);
+  if(c.geburtsdatum){
+    const dt=daysToBirthday(c.geburtsdatum);
+    const soon=dt===0?', hat heute Geburtstag':dt<=30?`, Geburtstag in ${dt} ${dt===1?'Tag':'Tagen'}`:'';
+    kv.push(['Geburtsdatum',`${esc(fmtYMD(c.geburtsdatum))} (${age(c.geburtsdatum)} Jahre${soon})<div class="status">${needsGeb(c)?`Noch nicht im Geburtstagskalender. <button data-act="gebOne" data-id="${esc(c.id)}">Jetzt eintragen</button>`:`Im Geburtstagskalender bis ${c.gebKal.bis}`}</div>`]);
+  }
+  if(c.beruf) kv.push(['Beruf',esc(c.beruf)]);
+  const orte=(c.orte||[]).filter(o=>o.ort||o.plz);
+  if(orte.length) kv.push([orte.length>1?'Wohnorte':'Wohnort',esc(orte.map(o=>[o.plz,o.ort].filter(Boolean).join(' ')).join('\n'))]);
+  if(c.hobbys) kv.push(['Hobbys',`<div class="chips">${c.hobbys.split(/\s*[,;]\s*/).filter(Boolean).map(h=>`<span class="chip">${esc(h)}</span>`).join('')}</div>`]);
+  const due=dueOf(c);
+  if(c.rhythmus) kv.push(['Wiedervorlage',esc((RHY.find(r=>r[0]==c.rhythmus)||[0,''])[1])+(due?` · nächster Kontakt ${esc(fmtYMD(due))}${daysSince(due)>0?' <b style="color:var(--warn)">(fällig)</b>':''}`:' · Kontakt ist geplant')]);
+  if(c.erstkontakt||c.erstkontaktDatum) kv.push(['Erstkontakt',esc([c.erstkontakt,c.erstkontaktDatum?'am '+fmtYMD(c.erstkontaktDatum):''].filter(Boolean).join(', '))]);
+  const more=[];
+  if(c.firma) more.push(['Firma',esc(c.firma)]);
+  if(c.adresse) more.push(['Adresse',esc(c.adresse)]);
+  if(c.web) more.push(['Webseite',`<a href="${esc(webHref(c.web))}" target="_blank" rel="noopener">${esc(c.web)}</a>`]);
+  if(c.infos) more.push(['Weitere Infos',esc(c.infos)]);
+  Object.entries(c.extra||{}).filter(([,v])=>v).forEach(([k,v])=>more.push([esc(k),esc(v)]));
+  const kvHtml=a=>a.map(([k,v])=>`<div class="kv"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const vl=sortedVerlauf(c), t=todayYMD();
+  return `
+  <header class="bar"><div class="bar-row">
+    <button class="link" data-act="list">‹ Kontakte</button>
+    <button class="btn" data-act="edit" data-id="${esc(c.id)}">Bearbeiten</button>
+  </div></header>
+  <div class="hero">
+    <div class="av" style="background:${avColor(c)}" aria-hidden="true">${esc(initials(c))}</div>
+    <div class="nm">${esc(displayName(c))}</div>
+    ${c.beruf||ortNames(c).length?`<div class="sub">${esc([c.beruf,ortNames(c).join(', ')].filter(Boolean).join(', '))}</div>`:''}
+    ${quick?`<div class="quick">${quick}</div>`:''}
+  </div>
+  <div class="lc ${isOld(l)?'old':''}">
+    <div class="lc-k">Letzter Kontakt</div>
+    ${l?`<div class="lc-v">${esc(fmtLong(l))}</div><div class="lc-r">${esc(relLong(l))}</div>`
+       :`<div class="lc-v">Noch kein Kontakt erfasst</div><div class="lc-r">Erfasse den ersten Kontakt mit Datum.</div>`}
+    ${view.form==='new'?entryForm(null):view.form==='plan'?planForm(c,null):`<div class="btns"><button class="btn primary" data-act="addEntry">Kontakt erfassen</button><button class="btn" data-act="planNew">Nächsten planen</button></div>`}
+  </div>
+  ${planCard(c)}
+  ${kv.length?`<div class="card">${kvHtml(kv)}</div>`:''}
+  <div class="card">
+    <div class="card-h"><h2>Kontaktverlauf</h2><span class="hint" style="margin:0">${vl.length} ${vl.length===1?'Eintrag':'Einträge'}</span></div>
+    ${vl.length?vl.map(e=>view.form===e.id?entryForm(e):`
+      <button class="entry ${e.datum>t?'future':''}" data-act="editEntry" data-eid="${esc(e.id)}">
+        <div class="d">${esc(fmtYMD(e.datum))}${e.art?`<span class="art">${esc(e.art)}</span>`:''}<small>${e.datum>t?'geplant':esc(relLong(e.datum))}</small></div>
+        <div class="t ${e.text?'':'none'}">${esc(e.text||'Ohne Notiz')}</div>
+      </button>`).join(''):`<p class="note">Noch keine Einträge. Tippe oben auf «Kontakt erfassen».</p>`}
+  </div>
+  ${more.length?`<div class="card">${kvHtml(more)}</div>`:''}
+  <p class="meta">Erfasst am ${fmtISO(c.erstellt)}${c.geaendert&&c.geaendert!==c.erstellt?`<br>Zuletzt geändert am ${fmtISO(c.geaendert)}`:''}</p>
+  <button class="btn danger wide" data-act="del" data-id="${esc(c.id)}">Kontakt löschen</button>`;
+}
+function saveEntry(){
+  const c=contacts.find(x=>x.id===view.id); if(!c) return;
+  const d=$('#eDate').value, text=$('#eText').value.trim();
+  const art=($('#eArt')||{}).value||'';
+  if(!d||!parseDateAny(d)){ toast('Bitte ein Datum wählen.'); return; }
+  if(view.form==='new') c.verlauf.push({id:uid(),datum:d,art,text,geplant:d>todayYMD()});
+  else { const e=c.verlauf.find(x=>x.id===view.form); if(e){ e.datum=d; e.art=art; e.text=text; } }
+  c.geaendert=new Date().toISOString(); persist();
+  toast(d>todayYMD()?'Als geplanter Kontakt eingetragen':'Kontakt eingetragen');
+  view.form=null; render();
+}
+
+/* ---------- Nächsten Kontakt planen ---------- */
+const DAUER=[[15,'15 Minuten'],[30,'30 Minuten'],[60,'1 Stunde'],[90,'1½ Stunden'],[120,'2 Stunden']];
+function addDays(y,n){ const d=ymdToDate(y); d.setDate(d.getDate()+n); return ymdLocal(d); }
+const fmtWeekday = y => ymdToDate(y).toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+function planForm(c,e){
+  const ort=e?e.ort:((c.orte||[]).find(o=>o.ort)||{}).ort||'';
+  return `<div class="entry-form">
+    <div class="two">
+      <label class="f"><span>Datum</span><input class="in" type="date" id="pDate" value="${esc(e?e.datum:addDays(todayYMD(),7))}"></label>
+      <label class="f"><span>Uhrzeit</span><input class="in" type="time" id="pTime" value="${esc(e&&e.zeit?e.zeit:'10:00')}"></label>
+    </div>
+    <label class="f"><span>Dauer</span><select id="pDur">${DAUER.map(([v,l])=>`<option value="${v}" ${(e?e.dauer||60:60)===v?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label class="f"><span>Ort</span><input class="in" id="pOrt" value="${esc(ort||'')}" placeholder="Zum Beispiel: Café Central, Baden, oder Telefon"></label>
+    <label class="f"><span>Worum geht es?</span><textarea id="pText" placeholder="Zum Beispiel: Nachfragen wegen Umzug">${esc(e?e.text:'')}</textarea></label>
+    <label class="check"><input type="checkbox" id="pCal" ${e&&e.kal?'':'checked'}> ${e&&e.kal?'Geänderten Termin nochmals in den Kalender eintragen':'In den Kalender eintragen'}</label>
+    <div class="btns"><button class="btn" data-act="cancelEntry">Abbrechen</button><button class="btn primary" data-act="savePlan">${e?'Änderung speichern':'Planen'}</button></div>
+    ${e?`<button class="btn danger wide" style="margin-top:10px" data-act="planDrop" data-eid="${esc(e.id)}">Planung löschen</button>`:''}
+  </div>`;
+}
+function planCard(c){
+  const pl=plannedOf(c); if(!pl.length) return '';
+  const t=todayYMD();
+  return `<div class="plan"><div class="lc-k">${pl.length>1?'Geplante Kontakte':'Nächster Kontakt geplant'}</div>
+  ${pl.map(e=>view.form==='plan:'+e.id?planForm(c,e):`
+    <div class="pl-item">
+      <div class="pl-when">${esc(fmtWeekday(e.datum))}${e.zeit?`, ${esc(e.zeit)} Uhr`:''}</div>
+      ${e.ort?`<div class="pl-meta">${esc(e.ort)}</div>`:''}
+      ${e.text?`<div class="pl-what">${esc(e.text)}</div>`:''}
+      ${e.datum<=t?`
+        <p class="due">Hat dieser Kontakt stattgefunden?</p>
+        <div class="btns"><button class="btn primary" data-act="planDone" data-eid="${esc(e.id)}">Ja, eintragen</button><button class="btn" data-act="planEdit" data-eid="${esc(e.id)}">Verschieben</button></div>
+        <button class="btn danger wide" style="margin-top:10px" data-act="planDrop" data-eid="${esc(e.id)}">Hat nicht stattgefunden</button>`
+      :`<div class="status">${e.kal?'Im Kalender eingetragen. ':''}<button data-act="planCal" data-eid="${esc(e.id)}">${e.kal?'Nochmals senden':'In Kalender eintragen'}</button></div>
+        <div class="btns"><button class="btn" data-act="planEdit" data-eid="${esc(e.id)}">Ändern</button></div>`}
+    </div>`).join('')}
+  </div>`;
+}
+function savePlan(){
+  const c=contacts.find(x=>x.id===view.id); if(!c) return;
+  const d=$('#pDate').value, z=$('#pTime').value, dur=+$('#pDur').value, ort=$('#pOrt').value.trim(), text=$('#pText').value.trim(), cal=$('#pCal').checked;
+  if(!d||!parseDateAny(d)){ toast('Bitte ein Datum wählen.'); return; }
+  if(d<todayYMD()){ toast('Bitte ein Datum ab heute wählen. Vergangene Kontakte erfasst du mit «Kontakt erfassen».'); return; }
+  let e;
+  if(view.form==='plan'){ e={id:uid(),geplant:true}; c.verlauf.push(e); }
+  else e=c.verlauf.find(x=>'plan:'+x.id===view.form);
+  if(!e) return;
+  Object.assign(e,{datum:d,zeit:z||'',dauer:dur,ort,text});
+  if(cal) e.kal=true;
+  c.geaendert=new Date().toISOString(); persist();
+  view.form=null; render();
+  if(cal) runShortcut(SC_TERMIN,terminPayload(c,e)); else toast('Kontakt geplant');
+}
+function findEntry(eid){ const c=contacts.find(x=>x.id===view.id); return c?[c,(c.verlauf||[]).find(x=>x.id===eid)]:[null,null]; }
+
+/* ---------- Kalender über iPhone-Kurzbefehle ---------- */
+const SC_TERMIN='CRM Termin', SC_GEB='CRM Erinnerung', GEB_JAHRE=5;
+function copyText(t){
+  let ok=false;
+  try{
+    const ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px';
+    document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0,t.length);
+    ok=document.execCommand('copy'); document.body.removeChild(ta);
+  }catch(e){}
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(()=>{}); }catch(e){}
+  return ok;
+}
+function runShortcut(name,payload){
+  const json=JSON.stringify(payload);
+  const copied=copyText(json);
+  const url='shortcuts://run-shortcut?name='+encodeURIComponent(name);
+  try{ window.open(url,'_blank'); }catch(e){}
+  const sh=$('#sheet');
+  sh.innerHTML=`<div class="in-sheet">
+    <p><b>Kurzbefehl «${esc(name)}» wird geöffnet.</b> ${copied?'Die Angaben sind kopiert.':'Die Angaben konnten nicht kopiert werden. Öffne das CRM in Safari und versuche es nochmals.'}</p>
+    <p class="note" style="margin-top:0">Falls sich nichts öffnet, tippe auf «Kurzbefehl öffnen» oder starte «${esc(name)}» direkt in der App «Kurzbefehle».</p>
+    <div class="btns"><button class="btn" data-act="sheetClose">Schliessen</button><a class="btn primary" href="${esc(url)}" target="_blank" rel="noopener">Kurzbefehl öffnen</a></div>
+  </div>`;
+  sh.hidden=false;
+}
+function terminPayload(c,e){
+  const s=new Date(`${e.datum}T${e.zeit||'09:00'}:00`), en=new Date(s.getTime()+(e.dauer||60)*60000);
+  const iso=d=>`${ymdLocal(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+  const first=(e.text||'').split('\n')[0].trim();
+  return {titel:first?`${displayName(c)}: ${first}`:`Kontakt mit ${displayName(c)}`,start:iso(s),ende:iso(en),ort:e.ort||'',
+    notiz:[e.text,c.mobile&&('Mobile: '+c.mobile),c.telefon&&('Telefon: '+c.telefon),c.email&&('E-Mail: '+c.email)].filter(Boolean).join('\n')};
+}
+function bdayIn(g,yr){
+  let [,m,d]=g.split('-').map(Number);
+  if(m===2&&d===29&&!(yr%4===0&&(yr%100!==0||yr%400===0))) d=28;
+  return `${yr}-${pad(m)}-${pad(d)}`;
+}
+function needsGeb(c){
+  if(!c.geburtsdatum) return false;
+  return !c.gebKal||c.gebKal.datum!==c.geburtsdatum||c.gebKal.bis<new Date().getFullYear()+1;
+}
+function gebEntries(c){
+  const t=todayYMD(); const y0=+c.geburtsdatum.slice(0,4);
+  let start=new Date().getFullYear(); if(bdayIn(c.geburtsdatum,start)<t) start++;
+  if(c.gebKal&&c.gebKal.datum===c.geburtsdatum) start=Math.max(start,c.gebKal.bis+1);
+  const end=new Date().getFullYear()+GEB_JAHRE, out=[];
+  for(let yr=start;yr<=end;yr++) out.push({titel:`🎂 ${displayName(c)} (${yr-y0})`,datum:bdayIn(c.geburtsdatum,yr),notiz:`Geboren am ${fmtYMD(c.geburtsdatum)}`});
+  return {out,end};
+}
+function sendBirthdays(list){
+  const termine=[];
+  list.forEach(c=>{ const r=gebEntries(c); termine.push(...r.out); c.gebKal={datum:c.geburtsdatum,bis:r.end}; touch(c); });
+  if(!termine.length){ toast('Alle Geburtstage sind bereits im Kalender.'); return; }
+  persist(); render();
+  runShortcut(SC_GEB,{termine});
+}
+function sendReminders(){
+  const due=dueList(); if(!due.length){ toast('Zurzeit ist nichts fällig.'); return; }
+  const t=todayYMD();
+  const termine=due.map(({c,d})=>{
+    const l=lastContact(c);
+    return {titel:'CRM: '+displayName(c)+' kontaktieren',
+      datum:d<t?t:d,
+      notiz:[l?'Letzter Kontakt am '+fmtYMD(l):'Noch kein Kontakt erfasst',
+        c.mobile&&('Mobile: '+c.mobile),c.telefon&&('Telefon: '+c.telefon),c.email&&('E-Mail: '+c.email),
+        ortNames(c).length&&('Wohnort: '+ortNames(c).join(', '))].filter(Boolean).join('\n')};
+  });
+  runShortcut(SC_GEB,{termine});
+}
+function kalView(){
+  const tm=addDays(todayYMD(),1);
+  return `
+  <header class="bar"><div class="bar-row"><button class="link" data-act="data">‹ Daten und Kalender</button><span></span></div>
+  <h1>Kalender einrichten</h1>
+  <p class="note">Eine Webseite darf nicht selbst in deinen iPhone-Kalender schreiben. Das übernehmen zwei Kurzbefehle, die du einmal einrichtest. Öffne das CRM dafür am besten in Safari.</p></header>
+
+  <div class="group"><h2>Vorbereitung</h2>
+    <ol class="steps">
+      <li>Den automatischen Kalender «Geburtstage» von Apple kann man nicht selbst beschreiben. Lege in der Kalender-App unter «Kalender» einen eigenen iCloud-Kalender an und nenne ihn <b>CRM</b>. Dort landen Geburtstage und Wiedervorlagen. Weil er in iCloud liegt, siehst du ihn auch in Outlook.</li>
+      <li>Prüfe in der Kalender-App unter «Kalender», dass der mit Outlook geteilte Kalender dort erscheint und nicht als schreibgeschützt markiert ist.</li>
+    </ol>
+  </div>
+
+  <div class="group"><h2>Kurzbefehl 1: Geplante Kontakte</h2>
+    <ol class="steps">
+      <li>App «Kurzbefehle» öffnen, oben rechts auf <b>+</b> tippen und den Kurzbefehl oben genau <b>CRM Termin</b> nennen.</li>
+      <li>Aktion <b>Zwischenablage abrufen</b> hinzufügen.</li>
+      <li>Aktion <b>Wörterbuch abrufen</b> hinzufügen. Sie nimmt automatisch die Zwischenablage.</li>
+      <li>Fünfmal die Aktion <b>Wörterbuchwert abrufen</b> hinzufügen, mit den Schlüsseln <b>titel</b>, <b>start</b>, <b>ende</b>, <b>ort</b> und <b>notiz</b>. Bei jeder muss rechts «Wörterbuch» stehen. Steht dort etwas anderes, darauf tippen und «Wörterbuch» wählen.</li>
+      <li>Aktion <b>Neues Ereignis hinzufügen</b> (auch «Kalenderereignis hinzufügen») wählen. Als Kalender deinen Outlook-Kalender einstellen. Titel, Beginn und Ende mit den passenden Wörterbuchwerten füllen: ins Feld tippen, «Variable auswählen» und die Aktion mit dem richtigen Schlüssel antippen.</li>
+      <li>Auf «Mehr anzeigen» tippen und Ort und Notizen ebenso füllen. Fertig.</li>
+    </ol>
+    <button class="btn wide" data-act="testTermin">Testtermin für morgen senden</button>
+  </div>
+
+  <div class="group"><h2>Kurzbefehl 2: Geburtstage und Erinnerungen</h2>
+    <p class="note">Dieser Kurzbefehl legt ganztägige Einträge mit Erinnerung an. Er wird für die Geburtstage und für die Wiedervorlagen aus der Ansicht «Fällig» verwendet.</p>
+    <ol class="steps">
+      <li>Neuen Kurzbefehl anlegen und genau <b>CRM Erinnerung</b> nennen.</li>
+      <li><b>Zwischenablage abrufen</b>, dann <b>Wörterbuch abrufen</b> hinzufügen.</li>
+      <li><b>Wörterbuchwert abrufen</b> mit dem Schlüssel <b>termine</b>.</li>
+      <li><b>Wiederholen mit jedem Objekt</b> hinzufügen. Es nimmt automatisch den Wörterbuchwert.</li>
+      <li>Innerhalb der Wiederholung zweimal <b>Wörterbuchwert abrufen</b>, mit den Schlüsseln <b>titel</b> und <b>datum</b>. Rechts jeweils «Wiederholungsobjekt» wählen.</li>
+      <li>Innerhalb der Wiederholung ausserdem <b>Wörterbuchwert abrufen</b> mit dem Schlüssel <b>notiz</b>, ebenfalls mit «Wiederholungsobjekt».</li>
+      <li>Ebenfalls innerhalb: <b>Neues Ereignis hinzufügen</b>. Kalender <b>CRM</b>, «Ganztägig» einschalten, Titel mit titel füllen, Beginn und Ende beide mit datum, Notizen mit notiz. Dann unter «Mehr anzeigen» bei «Erinnerung» <b>Am Tag des Ereignisses (9:00)</b> wählen. Diese Erinnerung ist die Mitteilung, die du aufs iPhone bekommst.</li>
+    </ol>
+    <button class="btn wide" data-act="testGeb">Testeintrag für morgen senden</button>
+  </div>
+
+  <div class="group"><h2>Wenn etwas nicht klappt</h2>
+    <p class="note">Nach den Tests sollten beide Einträge für morgen im richtigen Kalender stehen. Lösche sie danach wieder. Stimmt die Uhrzeit nicht, füge im ersten Kurzbefehl vor «Neues Ereignis hinzufügen» die Aktion «Datumsangaben aus Eingabe abrufen» für Beginn und Ende ein.</p>
+    <p class="note">Erinnerungen für fällige Kontakte trägst du in der Ansicht «Fällig» ein. Geburtstage werden jeweils für ${GEB_JAHRE} Jahre im Voraus eingetragen. Das CRM merkt sich, was schon gesendet wurde, damit nichts doppelt kommt. Falls ein Versand nicht geklappt hat, kannst du die Markierungen hier zurücksetzen.</p>
+    <button class="btn danger wide" data-act="gebReset">Geburtstags-Markierungen zurücksetzen</button>
+  </div>`;
+}
+
+/* ---------- Bearbeiten / Neu ---------- */
+function inp(c,k,type,extra){
+  return `<label class="f"><span>${FIELD[k].l}</span><input class="in" data-f="${k}" type="${type||'text'}" value="${esc(c[k]||'')}" ${extra||''}></label>`;
+}
+function ortRow(o){
+  return `<div class="ort-row">
+    <input class="in" data-o="plz" value="${esc(o.plz||'')}" placeholder="PLZ" inputmode="numeric" aria-label="PLZ">
+    <input class="in" data-o="ort" value="${esc(o.ort||'')}" placeholder="Ort" aria-label="Wohnort">
+    <button class="x" data-act="rmOrt" aria-label="Wohnort entfernen">×</button>
+  </div>`;
+}
+function editView(){
+  const isNew=!view.id;
+  const c=isNew?{}:(contacts.find(x=>x.id===view.id)||{});
+  const orte=(c.orte&&c.orte.length)?c.orte:[{}];
+  const extra=Object.entries(c.extra||{});
+  return `
+  <header class="bar"><div class="bar-row">
+    <button class="link" data-act="${isNew?'list':'open'}" data-id="${esc(c.id||'')}">Abbrechen</button>
+    <button class="btn primary" data-act="save">Speichern</button>
+  </div>
+  <h1>${isNew?'Neuer Kontakt':'Kontakt bearbeiten'}</h1></header>
+
+  <details class="paste">
+    <summary>Von Visitenkarte übernehmen</summary>
+    <div class="scan">
+      <label class="btn primary filebtn" style="text-align:center">Karte fotografieren
+        <input type="file" id="scanCam" accept="image/*" capture="environment">
+      </label>
+      <label class="btn filebtn" style="text-align:center">Foto auswählen
+        <input type="file" id="scanFile" accept="image/*">
+      </label>
+    </div>
+    <div id="scanBox"></div>
+    <details id="scanText" ${''}>
+      <summary style="font-size:.93rem;color:var(--accent);font-weight:600">Text selbst einfügen oder erkannten Text korrigieren</summary>
+      <ol class="how">
+        <li>Visitenkarte in der iPhone-Kamera oder in «Fotos» öffnen.</li>
+        <li>Auf das Texterkennungs-Symbol tippen, dann «Alles kopieren».</li>
+        <li>Hier einfügen und «Felder ausfüllen» tippen.</li>
+      </ol>
+      <textarea id="pasteText" placeholder="Text der Visitenkarte hier einfügen" aria-label="Text der Visitenkarte"></textarea>
+      <button class="btn primary" data-act="parse">Felder ausfüllen</button>
+    </details>
+    <p class="note" style="margin:10px 0 0">Foto und Texterkennung bleiben vollständig auf deinem Gerät. Bitte die Felder danach kurz prüfen.</p>
+  </details>
+
+  <div class="group"><h3>Person</h3>
+    <div class="two">${inp(c,'vorname','text','autocomplete="off"')}${inp(c,'nachname','text','autocomplete="off"')}</div>
+    <label class="f"><span>Geburtsdatum</span><input class="in" data-f="geburtsdatum" id="bday" value="${esc(fmtYMD(c.geburtsdatum))}" placeholder="TT.MM.JJJJ" inputmode="decimal" autocomplete="off"></label>
+    ${inp(c,'beruf')}
+    <label class="f"><span>Hobbys</span><input class="in" data-f="hobbys" value="${esc(c.hobbys||'')}" placeholder="Mit Komma trennen, z. B. Golf, Wandern, Kochen"></label>
+  </div>
+  <div class="group"><h3>Erreichbarkeit</h3>
+    <div class="two">${inp(c,'mobile','tel')}${inp(c,'telefon','tel')}</div>
+    ${inp(c,'email','email','autocapitalize="off"')}
+  </div>
+  <div class="group"><h3>Wohnorte</h3>
+    <div id="orte">${orte.map(ortRow).join('')}</div>
+    <button class="addlink" data-act="addOrt">Weiteren Wohnort hinzufügen</button>
+  </div>
+  <div class="group"><h3>Erstkontakt</h3>
+    <label class="f"><span>Wo habt ihr euch kennengelernt?</span><input class="in" data-f="erstkontakt" value="${esc(c.erstkontakt||'')}" placeholder="Zum Beispiel: Geburtstag von Marco, Turnverein"></label>
+    <label class="f"><span>Wann?</span><input class="in" type="date" data-f="erstkontaktDatum" value="${esc(isNew?todayYMD():(c.erstkontaktDatum||''))}"></label>
+    ${isNew?`<label class="f"><span>Notiz zum ersten Gespräch</span><textarea id="firstNote" placeholder="Wird mit dem Datum oben als erster Eintrag im Kontaktverlauf gespeichert"></textarea></label>`:''}
+  </div>
+  <div class="group"><h3>Wiedervorlage</h3>
+    <label class="f" style="margin-top:0"><span>Wie oft willst du Kontakt haben?</span>
+      <select data-f="rhythmus">${RHY.map(([v,l])=>`<option value="${v}" ${String(c.rhythmus||0)===String(v)?'selected':''}>${l}</option>`).join('')}</select></label>
+    <p class="note" style="margin:8px 0 0">Die App rechnet ab dem letzten Kontakt und zeigt den Kontakt dann unter «Fällig». Von dort kannst du Erinnerungen in den Kalender eintragen.</p>
+  </div>
+  <div class="group"><h3>Weitere Angaben</h3>
+    ${inp(c,'firma')}${inp(c,'adresse')}${inp(c,'web','url','autocapitalize="off" inputmode="url"')}
+    <label class="f"><span>Weitere Infos</span><textarea data-f="infos" placeholder="Dauerhafte Infos ohne Datum, z. B. Partnerin heisst Sandra, zwei Kinder">${esc(c.infos||'')}</textarea></label>
+  </div>
+  ${extra.length?`<div class="group"><h3>Weitere Felder aus dem Import</h3>
+    ${extra.map(([k,v])=>`<label class="f"><span>${esc(k)}</span><input class="in" data-x="${esc(k)}" value="${esc(v)}"></label>`).join('')}
+  </div>`:''}
+  <button class="btn primary wide" data-act="save">Speichern</button>`;
+}
+
+function saveForm(){
+  const isNew=!view.id, now=new Date().toISOString();
+  const data={};
+  document.querySelectorAll('[data-f]').forEach(el=>{ data[el.dataset.f]=el.value.trim(); });
+  data.rhythmus=+(data.rhythmus||0)||0;
+  if(data.geburtsdatum){
+    const g=parseDateAny(data.geburtsdatum);
+    if(!g||g>todayYMD()){ toast('Geburtsdatum bitte als TT.MM.JJJJ eingeben.'); $('#bday').focus(); return; }
+    data.geburtsdatum=g;
+  }
+  if(!data.vorname && !data.nachname){ toast('Bitte mindestens Vorname oder Nachname eingeben.'); return; }
+  data.orte=[...document.querySelectorAll('.ort-row')].map(r=>({plz:r.querySelector('[data-o=plz]').value.trim(),ort:r.querySelector('[data-o=ort]').value.trim()})).filter(o=>o.plz||o.ort);
+  const extra={};
+  document.querySelectorAll('[data-x]').forEach(el=>{ if(el.value.trim()) extra[el.dataset.x]=el.value.trim(); });
+  if(isNew){
+    const note=($('#firstNote')||{}).value; const n=(note||'').trim();
+    if(n && !data.erstkontaktDatum){ toast('Bitte beim Erstkontakt ein Datum wählen.'); return; }
+    const c=Object.assign({id:uid(),erstellt:now,geaendert:now,extra:{},verlauf:[]},data);
+    if(data.erstkontaktDatum){
+      c.verlauf.push({id:uid(),datum:data.erstkontaktDatum,text:['Erstkontakt'+(data.erstkontakt?': '+data.erstkontakt:''),n].filter(Boolean).join('\n')});
+    }
+    contacts.push(c); persist(); toast('Kontakt gespeichert'); go({name:'detail',id:c.id});
+  }else{
+    const c=contacts.find(x=>x.id===view.id); if(!c) return;
+    Object.assign(c,data,{extra,geaendert:now}); persist(); toast('Änderungen gespeichert'); go({name:'detail',id:c.id});
+  }
+}
+/* ---------- Visitenkarten-Text erkennen ---------- */
+const RX_COMPANY=/\b(AG|GmbH|SA|S\.A\.|Sàrl|Sarl|KG|OHG|Ltd\.?|Inc\.?|LLC|Corp\.?|Genossenschaft|Verein|Stiftung|Holding|Treuhand|Group|Gruppe|& ?Co\.?)(?=\s|$|,)/i;
+const RX_ROLE=/(geschäftsführ|geschaeftsfuehr|ceo\b|cfo\b|cto\b|coo\b|leiter|leitung|head\b|manager|berater|consultant|inhaber|partner|director|direktor|verkauf|sales|projekt|assistent|sachbearbeit|präsident|praesident|gründer|founder|owner|verantwortlich|mitglied|spezialist|specialist|engineer|ingenieur|architekt|anwalt|treuhänder|mitarbeiter|officer|account|marketing|vorstand|chef|kundenberat|filialleit|teamleit|therapeut|arzt|ärztin|aerztin|lehrer|coach|trainer|fotograf|designer|entwickler|developer|sekretär|kaufm|makler|broker|advisor|analyst|planer|planner|associate|agent|vertreter|betreuer|fachfrau|fachmann|techniker|elektriker|schreiner|coiffeu|psycholog|juris|notar|revisor|buchhalt|steuer|immobilienberat|vermögensverwalt|wealth|relationship)/i;
+const RX_COUNTRY=/^(schweiz|switzerland|suisse|svizzera|deutschland|germany|österreich|oesterreich|austria|liechtenstein|frankreich|france|italien|italy)$/i;
+const RX_STREET=/(strasse|straße|str\.|weg|gasse|platz|allee|ring|rain|halde|quai|matte|steig|hof)\s*\d+\s*[a-z]?$|^[A-Za-zÄÖÜäöüéèàç .'-]+\s\d+\s*[a-zA-Z]?$/i;
+const PARTICLES=['von','van','de','di','du','la','le','zu','del','der','den','da'];
+
+const STOP_NAME=/\b(center|centre|zentrum|tower|haus|house|park|platz|building|gebäude|finance|financial|consulting|services|partners|bank|versicherung|versicherungen|immobilien|treuhand|group|gruppe|holding|solutions|management|capital|invest|investments|member|mitglied|switzerland|schweiz|suisse|trade)\b/i;
+const FREEMAIL=/@(gmail|googlemail|bluewin|gmx|hotmail|outlook|live|icloud|me|mac|yahoo|sunrise|hispeed|swissonline|protonmail|proton|web|t-online|msn|aol)\./i;
+const NOISE=/^(member|mitglied|membre|membro|zertifiziert|certified|registered|eingetragen)\b/i;
+function titleCase(s){
+  if(s!==s.toUpperCase()) return s;
+  return s.toLowerCase().split(' ').map(w=>PARTICLES.includes(w)?w:w.replace(/(^|[-'’])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase())).join(' ');
+}
+function parseCard(text){
+  const r={};
+  const lines=text.split(/\r?\n/).map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const items=[]; let emailLine=-1, streetLine=-1;
+  lines.forEach((ln,i)=>{
+    let rest=ln;
+    const em=rest.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if(em){ if(!r.email){ r.email=em[0]; emailLine=i; } rest=rest.replace(em[0],' '); }
+    const phones=rest.match(/(?:\+|00)?\d[\d \/().-]{6,}\d/g)||[];
+    for(const p of phones){
+      const digits=p.replace(/\D/g,'');
+      if(digits.length<9||digits.length>15) continue;
+      rest=rest.replace(p,' ');
+      if(/fax/i.test(ln)) continue;
+      const compact=p.replace(/[ \/().-]/g,'');
+      const isMob=/(mobil|mobile|natel|handy|cell)/i.test(ln) || /(^|\s)m\s*[:.]?\s*(\+|0)/i.test(ln)
+        || /^(\+41|0041|0)7[5-9]/.test(compact) || /^(\+49|0049|0)1[5-7]/.test(compact) || /^(\+43|0043|0)6[5-9]/.test(compact);
+      if(isMob && !r.mobile) r.mobile=p.trim();
+      else if(!r.telefon) r.telefon=p.trim();
+      else if(!r.mobile) r.mobile=p.trim();
+    }
+    const web=rest.match(/\b((?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:ch|com|de|at|li|net|org|swiss|io|eu|fr|it|info|biz|co)(?:\/\S*)?)\b/i);
+    if(web && !/@/.test(web[0])){ if(!r.web) r.web=web[1]; rest=rest.replace(web[0],' '); }
+    rest=rest.replace(/\b(tel(efon)?|phone|mobil(e)?|natel|handy|fax|e-?mail|mail|web|www|t|m|f|e|p|o)\s*[:.]/gi,' ')
+             .replace(/^[\s|•·,;:\/-]+|[\s|•·,;:\/-]+$/g,'').replace(/\s+/g,' ').trim();
+    if(!rest) return;
+    if(NOISE.test(rest)) return;
+    const pieces=rest.split(/\s*[|•·;]\s*|,\s+/).map(s=>s.trim()).filter(Boolean);
+    for(const pc of pieces){
+      const plz=pc.match(/^(?:(?:CH|D|A|FL)[- ])?(\d{4,5})\s+([A-Za-zÄÖÜäöüÉÈéèàâçô][^\d]*)$/);
+      if(plz && !r.plz){ r.plz=plz[1]; r.ort=plz[2].trim(); continue; }
+      if(RX_COUNTRY.test(pc)){ if(!r.land) r.land=pc; continue; }
+      if(/^postfach/i.test(pc)||NOISE.test(pc)) continue;
+      if(RX_STREET.test(pc) && !r.strasse && !RX_COMPANY.test(pc)){ r.strasse=pc; streetLine=i; continue; }
+      if(pc.replace(/[^\p{L}]/gu,'').length<2) continue;
+      items.push({i,t:pc,used:false});
+    }
+  });
+  const free=()=>items.filter(x=>!x.used);
+  // Firma
+  const fi=free().find(x=>RX_COMPANY.test(x.t));
+  if(fi){
+    fi.used=true; r.firma=fi.t;
+    const prev=free().find(x=>x.i===fi.i-1&&x.t===x.t.toUpperCase()&&x.t.split(' ').length<=3);
+    if(prev){ prev.used=true; r.firma=prev.t+' '+r.firma; }
+  }
+  // Funktion
+  let roleIdx=-1;
+  const ro=free().find(x=>RX_ROLE.test(x.t)&&!STOP_NAME.test(x.t.replace(/\b(partner|management)\b/gi,'')));
+  if(ro){ ro.used=true; r.funktion=ro.t; roleIdx=ro.i; }
+  // Name: nächster Kandidat bei Funktion oder E-Mail
+  const cands=free().filter(x=>looksLikeName(x.t)&&!STOP_NAME.test(x.t));
+  if(cands.length){
+    const a=roleIdx>=0?roleIdx:emailLine;
+    cands.sort((p,q)=>a<0?p.i-q.i:(Math.abs(p.i-a)-Math.abs(q.i-a))||p.i-q.i);
+    cands[0].used=true; splitName(titleCase(cands[0].t),r);
+  }
+  // Gebäude direkt über der Strasse
+  if(r.strasse&&streetLine>0){
+    const b=free().find(x=>x.i===streetLine-1&&/\b(center|centre|zentrum|tower|haus|house|building|gebäude|park|plaza|campus|etage|stock|trade)\b/i.test(x.t));
+    if(b){ b.used=true; r.strasse=splitRole(b.t,r)+', '+r.strasse; }
+  }
+  if(r.strasse) r.strasse=splitRole(r.strasse,r);
+  if(!r.firma){ const f=free()[0]; if(f){ f.used=true; r.firma=f.t; } }
+  if(!r.web&&r.email&&!FREEMAIL.test(r.email)) r.web=r.email.split('@')[1];
+  if(r.telefon) r.telefon=tidyPhone(r.telefon);
+  if(r.mobile) r.mobile=tidyPhone(r.mobile);
+  return r;
+}
+function splitRole(txt,r){
+  // Bei verrutschten Spalten klebt die Funktion am Gebäude- oder Strassennamen
+  const w=String(txt).trim().split(/\s+/);
+  const last=w[w.length-1];
+  if(!r.funktion&&w.length>2&&RX_ROLE.test(last)&&!/[\d.,]/.test(last)&&!STOP_NAME.test(last)){
+    r.funktion=w.pop(); return w.join(' ');
+  }
+  return String(txt).trim();
+}
+function tidyPhone(v){
+  const d=String(v).replace(/[^\d+]/g,'');
+  let m=d.match(/^\+41(\d{9})$/)||d.match(/^0041(\d{9})$/);
+  if(m) return '+41 '+m[1].replace(/^(\d{2})(\d{3})(\d{2})(\d{2})$/,'$1 $2 $3 $4');
+  m=d.match(/^0(\d{9})$/);
+  if(m) return '0'+m[1].replace(/^(\d{2})(\d{3})(\d{2})(\d{2})$/,'$1 $2 $3 $4');
+  m=d.match(/^\+49(\d{10,11})$/);
+  if(m) return '+49 '+m[1];
+  return String(v).replace(/\s+/g,' ').trim();
+}
+function stripTitles(s){
+  let prev; do{ prev=s; s=s.replace(/^(dr\.?|prof\.?|herr|frau|mr\.?|mrs\.?|ms\.?|dipl\.?\S*|lic\.?\S*|med\.?|mag\.?|ing\.?)\s+/i,''); }while(s!==prev);
+  return s;
+}
+function looksLikeName(s){
+  s=stripTitles(s);
+  if(/[\d@]/.test(s)||RX_COMPANY.test(s)) return false;
+  const w=s.split(/\s+/);
+  if(w.length<2||w.length>4) return false;
+  return w.every(x=>PARTICLES.includes(x.toLowerCase())||/^[A-ZÄÖÜÉÈ][\p{L}'’.-]+$/u.test(x));
+}
+function splitName(s,r){
+  const w=stripTitles(s).split(/\s+/);
+  let i=w.findIndex((x,idx)=>idx>0&&PARTICLES.includes(x.toLowerCase()));
+  if(i<0) i=w.length-1;
+  r.vorname=w.slice(0,i).join(' '); r.nachname=w.slice(i).join(' ');
+}
+
+/* ---------- Visitenkarte scannen ---------- */
+const OCR_SRC='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+let ocrLib=null, ocrWorker=null, scanning=false, scanThumb='';
+
+function scanStatus(title,sub,pct,err){
+  const el=$('#scanBox'); if(!el) return;
+  if(!title){ el.innerHTML=''; return; }
+  el.innerHTML=`<div class="scanbox">
+    ${scanThumb?`<img src="${scanThumb}" alt="Aufgenommene Karte">`:''}
+    <div class="st"><b style="${err?'color:var(--danger)':''}">${esc(title)}</b>
+      <span class="note" style="margin:0">${esc(sub||'')}</span>
+      ${pct==null?'':`<span class="prog"><i style="width:${Math.round(pct*100)}%"></i></span>`}
+    </div></div>`;
+}
+function loadOCR(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  if(!ocrLib) ocrLib=new Promise((res,rej)=>{
+    const sc=document.createElement('script'); sc.src=OCR_SRC;
+    sc.onload=()=>window.Tesseract?res(window.Tesseract):rej(new Error('lib'));
+    sc.onerror=()=>{ ocrLib=null; rej(new Error('lib')); };
+    document.head.appendChild(sc);
+  });
+  return ocrLib;
+}
+async function prepImage(file){
+  let bmp=null;
+  try{ if(window.createImageBitmap) bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }catch(e){}
+  if(!bmp){
+    bmp=await new Promise((res,rej)=>{
+      const url=URL.createObjectURL(file); const im=new Image();
+      im.onload=()=>{ URL.revokeObjectURL(url); res(im); };
+      im.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('bild')); };
+      im.src=url;
+    });
+  }
+  const w0=bmp.width||bmp.naturalWidth, h0=bmp.height||bmp.naturalHeight;
+  if(!w0||!h0) throw new Error('bild');
+  const target=1600, scale=target/w0;
+  const w=Math.round(w0*scale), h=Math.round(h0*scale);
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const cx=cv.getContext('2d');
+  cx.imageSmoothingQuality='high';
+  cx.drawImage(bmp,0,0,w,h);
+  try{
+    const img=cx.getImageData(0,0,w,h), p=img.data;
+    for(let i=0;i<p.length;i+=4){
+      const g=(p[i]*0.299+p[i+1]*0.587+p[i+2]*0.114);
+      p[i]=p[i+1]=p[i+2]=g;
+    }
+    cx.putImageData(img,0,0);
+  }catch(e){}
+  const tv=document.createElement('canvas'); tv.width=228; tv.height=Math.round(228*h/w);
+  tv.getContext('2d').drawImage(cv,0,0,tv.width,tv.height);
+  try{ scanThumb=tv.toDataURL('image/jpeg',0.6); }catch(e){ scanThumb=''; }
+  if(bmp.close) try{ bmp.close(); }catch(e){}
+  return cv;
+}
+async function runOCR(cv,onPct){
+  const T=await loadOCR();
+  const log=m=>{ if(m&&m.status==='recognizing text'&&typeof m.progress==='number') onPct(m.progress); };
+  if(T.createWorker){
+    try{
+      if(!ocrWorker) ocrWorker=await T.createWorker('deu+eng',1,{logger:log});
+      const res=await ocrWorker.recognize(cv);
+      return (res&&res.data&&res.data.text)||'';
+    }catch(e){ ocrWorker=null; }
+  }
+  const res=await T.recognize(cv,'deu+eng',{logger:log});
+  return (res&&res.data&&res.data.text)||'';
+}
+async function scanCard(file){
+  if(!file||scanning) return;
+  if(!/^image\//.test(file.type||'')){ toast('Bitte ein Bild auswählen.'); return; }
+  scanning=true; scanThumb='';
+  scanStatus('Bild wird aufbereitet …','Einen Moment',null);
+  try{
+    const cv=await prepImage(file);
+    scanStatus('Text wird erkannt …','Beim ersten Mal lädt die App einmalig die Erkennungsdaten, das kann eine Minute dauern.',0.02);
+    const text=await runOCR(cv,pct=>scanStatus('Text wird erkannt …','Das dauert einen Moment.',Math.max(0.02,pct)));
+    const clean=String(text||'').split('\n').map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
+    const ta=$('#pasteText'); if(ta) ta.value=clean;
+    if(!clean){ scanStatus('Kein Text erkannt','Versuche es mit mehr Licht, näher dran und möglichst gerade von oben.',null,true); scanning=false; return; }
+    const n=applyParsed(true);
+    scanStatus(n?`${n} Felder ausgefüllt`:'Text erkannt, aber keine Felder zugeordnet',
+      n?'Bitte kurz prüfen und ergänzen. Den erkannten Text findest du unten.':'Du findest den erkannten Text unten und kannst ihn korrigieren.',null,!n);
+    if(!n){ const dt=$('#scanText'); if(dt) dt.open=true; }
+  }catch(e){
+    const lib=e&&e.message==='lib';
+    scanStatus(lib?'Texterkennung konnte nicht geladen werden':'Das Bild konnte nicht gelesen werden',
+      lib?'Prüfe deine Internetverbindung. Du kannst den Text unten auch von Hand einfügen.':'Versuche es mit einem anderen Foto.',null,true);
+    const dt=$('#scanText'); if(dt) dt.open=true;
+  }
+  scanning=false;
+}
+
+function applyParsed(auto){
+  const t=$('#pasteText').value.trim();
+  if(!t){ toast('Zuerst die Karte fotografieren oder den Text einfügen.'); return 0; }
+  const r=parseCard(t);
+  const map={vorname:'vorname',nachname:'nachname',funktion:'beruf',firma:'firma',telefon:'telefon',mobile:'mobile',email:'email',web:'web',strasse:'adresse'};
+  let n=0;
+  for(const [k,v] of Object.entries(r)){
+    const el=map[k]&&document.querySelector(`[data-f="${map[k]}"]`);
+    if(el && v && !el.value.trim()){ el.value=v; n++; }
+  }
+  if(r.ort||r.plz){
+    const row=document.querySelector('.ort-row');
+    const p=row.querySelector('[data-o=plz]'), o=row.querySelector('[data-o=ort]');
+    if(!p.value.trim()&&!o.value.trim()){ p.value=r.plz||''; o.value=r.ort||''; n++; }
+  }
+  if(!auto) toast(n?`${n} Felder ausgefüllt. Bitte prüfen.`:'Nichts erkannt. Bitte die Felder von Hand ausfüllen.');
+  if(n&&!auto){ const dt=$('#scanText'); if(dt) dt.open=false; }
+  return n;
+}
+
+/* ---------- Import / Export ---------- */
+function dataView(){
+  return `
+  <header class="bar"><div class="bar-row"><button class="link" data-act="list">‹ Kontakte</button><span></span></div>
+  <h1>Daten und Kalender</h1></header>
+  ${ghGroup()}
+  <div class="group">
+    <h2>Kalender</h2>
+    <p class="note">Geburtstage und geplante Kontakte kommen über zwei Kurzbefehle in deinen iPhone-Kalender. Die Einrichtung machst du einmal.</p>
+    ${(()=>{ const n=contacts.filter(needsGeb).length; return `<button class="btn primary wide" data-act="gebAll" ${n?'':'disabled'}>${n?`${n} Geburtstage in Kalender eintragen`:'Alle Geburtstage sind im Kalender'}</button>`; })()}
+    <button class="btn wide" style="margin-top:10px" data-act="kal">Kalender einrichten und testen</button>
+  </div>
+  <div class="group">
+    <h2>Excel-Liste importieren</h2>
+    <p class="note">Wähle eine Excel- oder CSV-Datei. Du ordnest im nächsten Schritt die Spalten zu, bevor etwas übernommen wird.</p>
+    <label class="btn primary wide filebtn" style="text-align:center">Datei auswählen
+      <input type="file" id="fileIn" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+    </label>
+  </div>
+  <div class="group">
+    <h2>Alles in eine HTML-Datei sichern</h2>
+    <p class="note">Erstellt eine Kopie der App, in der deine ${contacts.length} Kontakte direkt eingebaut sind. Öffnest du diese Datei am Computer, ist alles da. Sie enthält deine Daten, behandle sie wie ein Dokument.${(()=>{ let t=''; try{ t=localStorage.getItem('crm.lastfile')||''; }catch(e){} return t?` Zuletzt gesichert am ${fmtISO(t)}.`:''; })()}</p>
+    <button class="btn primary wide" data-act="saveHtml">HTML-Datei mit Daten erstellen</button>
+  </div>
+  <div class="group">
+    <h2>Als Excel exportieren</h2>
+    <p class="note">Sichert alle ${contacts.length} Kontakte inklusive Kontaktverlauf als Excel-Datei. Damit machst du ein Backup oder überträgst die Kontakte auf ein anderes Gerät.</p>
+    <button class="btn wide" data-act="export" ${contacts.length?'':'disabled'}>Excel-Datei erstellen</button>
+  </div>
+  <div class="group">
+    <h2>Wo sind meine Daten?</h2>
+    <p class="note" style="margin-bottom:4px">${ghReady()?`Deine Kontakte liegen auf diesem Gerät und in deinem privaten GitHub-Repository <b>${esc(gh.owner)}/${esc(gh.repo)}</b>. Sonst nirgends, insbesondere nicht bei Claude. Jede Änderung wird dort als Version gespeichert, du kannst also auch ältere Stände wiederherstellen.`:`Deine Kontakte werden nur auf diesem Gerät gespeichert, in dem Browser oder der App, mit der du diese Seite öffnest. Sie werden nirgends hochgeladen. Richte oben den Abgleich ein, wenn du auf iPhone und Computer denselben Stand willst.`}</p>
+  </div>
+  <div class="group">
+    <h2>Alle Kontakte löschen</h2>
+    <p class="note">Entfernt alle Kontakte von diesem Gerät. Exportiere vorher ein Backup.</p>
+    <button class="btn danger wide" data-act="wipe" ${contacts.length?'':'disabled'}>Alle Kontakte löschen</button>
+  </div>`;
+}
+
+let xlsxPromise=null;
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  if(!xlsxPromise) xlsxPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>res(window.XLSX); s.onerror=()=>{xlsxPromise=null;rej(new Error('load'));};
+    document.head.appendChild(s);
+  });
+  return xlsxPromise;
+}
+async function onFile(file){
+  if(!file) return;
+  toast('Datei wird gelesen …');
+  try{
+    const XLSX=await loadXLSX();
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+    importState={wb,fileName:file.name,sheet:wb.SheetNames[0],skipDup:true};
+    readSheet(); go({name:'map'});
+  }catch(e){
+    toast('Die Datei konnte nicht gelesen werden. Prüfe, ob es eine Excel- oder CSV-Datei ist.');
+  }
+}
+function valueToText(v){
+  if(isDate(v)){ const d=parseDateAny(v); return d?fmtYMD(d):''; }
+  return String(v==null?'':v).trim();
+}
+function readSheet(){
+  const ws=importState.wb.Sheets[importState.sheet];
+  importState.raw=window.XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true,blankrows:true});
+  importState.headerRow=detectHeaderRow(importState.raw);
+  applyHeader();
+}
+function detectHeaderRow(raw){
+  let best=0, bestN=-1;
+  for(let i=0;i<Math.min(raw.length,8);i++){
+    const cells=(raw[i]||[]).map(valueToText).filter(Boolean);
+    const words=cells.filter(v=>/\p{L}/u.test(v)&&v.length<40).length;
+    const score=words*2+cells.length;
+    if(cells.length>=2&&score>bestN){ bestN=score; best=i; }
+  }
+  return best;
+}
+function applyHeader(){
+  const raw=importState.raw, hr=importState.headerRow;
+  const head=(raw[hr]||[]).map(valueToText);
+  const width=Math.max(head.length,...raw.slice(hr).map(r=>(r||[]).length),1);
+  importState.headers=Array.from({length:width},(_,i)=>head[i]||`Spalte ${i+1}`);
+  importState.rows=raw.slice(hr+1).filter(r=>(r||[]).some(v=>valueToText(v)));
+  importState.mapping=autoMap(importState.headers);
+}
+function rowPreview(r){
+  const v=(r||[]).map(valueToText).filter(Boolean).join(', ');
+  return v?(v.length>70?v.slice(0,70)+'…':v):'leer';
+}
+function autoMap(headers){
+  const targets=[...FIELDS,...SPECIAL];
+  const used=new Set(); const hn=headers.map(norm);
+  const hasFirst=hn.some(h=>FIELD.vorname.syn.includes(h));
+  const pick=(h)=>{
+    if(!hasFirst&&['name','vollstandiger name','full name','kontakt','kontaktperson','ansprechpartner','person','name vorname','vorname name'].includes(h)) return 'vollname';
+    if(h==='name') return 'nachname';
+    if(/bemerk|verlauf|notiz|kommentar/.test(h)) return 'verlauf';
+    for(const f of targets) if(f.syn.includes(h)||norm(f.l)===h) return f.k;
+    for(const f of targets) if(f.syn.some(s=>s.length>3&&h.startsWith(s))) return f.k;
+    return null;
+  };
+  return hn.map(h=>{ const t=pick(h); if(t&&!used.has(t)){ used.add(t); return t; } return 'extra'; });
+}
+function mapView(){
+  const s=importState; if(!s) return '';
+  const opts=k=>[
+    ['extra','Als Zusatzfeld behalten'],['ignore','Nicht übernehmen'],['vollname','Ganzer Name (wird aufgeteilt)'],
+    ...FIELDS.map(f=>[f.k,f.l]),...SPECIAL.map(f=>[f.k,f.l])
+  ].map(([v,l])=>`<option value="${v}" ${v===k?'selected':''}>${esc(l)}</option>`).join('');
+  const sample=i=>{ const r=s.rows.find(r=>valueToText(r[i])); return r?valueToText(r[i]).slice(0,90):'leer'; };
+  return `
+  <header class="bar"><div class="bar-row"><button class="link" data-act="data">Abbrechen</button><span></span></div>
+  <h1>Spalten zuordnen</h1>
+  <p class="note">${esc(s.fileName)}: ${s.rows.length} Kontaktzeilen gefunden. Prüfe, in welches Feld jede Spalte übernommen wird.</p>
+  <p class="note">Bemerkungen mit Datum am Zeilenanfang, zum Beispiel «12.03.2024: Kaffee getrunken», werden automatisch zu einzelnen Einträgen im Kontaktverlauf. Mehrere Wohnorte in einer Zelle trennst du mit Komma oder Strichpunkt.</p></header>
+  <div class="group">
+    ${s.wb.SheetNames.length>1?`<label class="f" style="margin-top:0"><span>Tabellenblatt</span><select id="sheetSel">${s.wb.SheetNames.map(n=>`<option ${n===s.sheet?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`:''}
+    <label class="f" style="${s.wb.SheetNames.length>1?'':'margin-top:0'}"><span>In welcher Zeile stehen die Spaltenbezeichnungen?</span>
+      <select id="headerSel">${s.raw.slice(0,10).map((r,i)=>`<option value="${i}" ${i===s.headerRow?'selected':''}>Zeile ${i+1}: ${esc(rowPreview(r))}</option>`).join('')}</select></label>
+    <p class="note" style="margin:8px 0 0">Die Kontakte werden ab der Zeile darunter gelesen, hier ab Zeile ${s.headerRow+2}.</p>
+  </div>
+  <div class="group">
+    ${s.headers.map((h,i)=>`<div class="map-row"><div class="h">${esc(h)}</div><div class="ex">Beispiel: ${esc(sample(i))}</div><select data-map="${i}" aria-label="Zuordnung für ${esc(h)}">${opts(s.mapping[i])}</select></div>`).join('')}
+  </div>
+  <label class="check"><input type="checkbox" id="skipDup" ${s.skipDup?'checked':''}> Kontakte überspringen, die schon vorhanden sind (gleiche E-Mail oder gleicher Name)</label>
+  <button class="btn primary wide" data-act="doImport" ${s.rows.length?'':'disabled'}>${s.rows.length} Zeilen importieren</button>`;
+}
+function parseVerlauf(text){
+  const re=/(^|[\n;|])\s*[-•*]?\s*(\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})|\d{4}-\d{2}-\d{2})\s*[:\-–]?\s*/g;
+  const hits=[]; let m;
+  while((m=re.exec(text))) hits.push({idx:m.index,end:re.lastIndex,raw:m[2],d:parseDateAny(m[2])});
+  if(!hits.length) return {entries:[],rest:text.trim()};
+  let rest=text.slice(0,hits[0].idx).trim();
+  const entries=[];
+  hits.forEach((h,i)=>{
+    const t=text.slice(h.end,i+1<hits.length?hits[i+1].idx:text.length).trim().replace(/[;|]\s*$/,'').trim();
+    if(h.d) entries.push({id:uid(),datum:h.d,text:t}); else rest=(rest+'\n'+h.raw+' '+t).trim();
+  });
+  return {entries,rest};
+}
+function splitOrt(txt){
+  return txt.split(/\s*[;,\/\n]\s*|\s+und\s+/).map(s=>s.trim()).filter(Boolean).map(s=>{
+    const m=s.match(/^(?:(?:CH|D|A|FL)[- ])?(\d{4,5})\s+(.+)$/); return m?{plz:m[1],ort:m[2]}:{plz:'',ort:s};
+  });
+}
+function dupKey(c){
+  if(c.email) return 'e:'+c.email.toLowerCase();
+  const k=norm((c.vorname||'')+' '+(c.nachname||''));
+  return k?'n:'+k:null;
+}
+function doImport(){
+  const s=importState, now=new Date().toISOString();
+  const existing=new Set(contacts.map(dupKey).filter(Boolean));
+  let added=0, skipped=0;
+  for(const row of s.rows){
+    const c={id:uid(),erstellt:now,geaendert:now,extra:{},orte:[],verlauf:[]};
+    const texts=[]; let lastDate=null, plz='';
+    s.headers.forEach((h,i)=>{
+      const m=s.mapping[i], raw=row[i], v=valueToText(raw);
+      if(!v||m==='ignore') return;
+      if(m==='extra'){ c.extra[h]=v; return; }
+      if(m==='vollname'){
+        const r={};
+        if(v.includes(',')){ const [a,b]=v.split(','); r.nachname=a.trim(); r.vorname=(b||'').trim(); }
+        else if(v.split(/\s+/).length>1) splitName(v,r); else r.nachname=v;
+        if(!c.vorname) c.vorname=r.vorname||''; if(!c.nachname) c.nachname=r.nachname||'';
+        return;
+      }
+      if(m==='orte'){ c.orte.push(...splitOrt(v)); return; }
+      if(m==='plz'){ plz=v; return; }
+      if(m==='letzterKontakt'||m==='verlauf'){
+        const d=(isDate(raw)||typeof raw==='number'||/^\s*[\d.\/-]+\s*$/.test(v))?parseDateAny(raw):null;
+        if(d){ if(!lastDate||d>lastDate) lastDate=d; } else texts.push(v);
+        return;
+      }
+      if(FIELD[m]&&FIELD[m].date){ const d=parseDateAny(raw); if(d) c[m]=d; else c.extra[h]=v; return; }
+      c[m]=c[m]?c[m]+' '+v:v;
+    });
+    if(plz){ if(c.orte.length&&!c.orte[0].plz) c.orte[0].plz=plz; else if(!c.orte.length) c.orte.push({plz,ort:''}); }
+    const undated=[];
+    texts.forEach(t=>{ const r=parseVerlauf(t); c.verlauf.push(...r.entries); if(r.rest) undated.push(r.rest); });
+    if(undated.length){
+      if(lastDate&&!c.verlauf.some(e=>e.datum===lastDate)){ c.verlauf.push({id:uid(),datum:lastDate,text:undated.join('\n')}); lastDate=null; }
+      else c.infos=[c.infos,undated.join('\n')].filter(Boolean).join('\n');
+    }
+    if(lastDate&&!c.verlauf.some(e=>e.datum===lastDate)) c.verlauf.push({id:uid(),datum:lastDate,text:''});
+    const hasData=FIELDS.some(f=>c[f.k])||c.orte.length||c.verlauf.length||Object.keys(c.extra).length;
+    if(!hasData) continue;
+    const key=dupKey(c);
+    if(s.skipDup&&key&&existing.has(key)){ skipped++; continue; }
+    if(key) existing.add(key);
+    contacts.push(c); added++;
+  }
+  persist(); importState=null; query='';
+  toast(`${added} Kontakte importiert${skipped?`, ${skipped} Duplikate übersprungen`:''}.`);
+  listScroll=0; go({name:'list'});
+}
+
+let downloadsP=null;
+function getDownloads(){
+  if(!downloadsP) downloadsP=(window.claude&&window.claude.use)?window.claude.use('downloads').catch(()=>null):Promise.resolve(null);
+  return downloadsP;
+}
+async function saveFile(filename,blob){
+  const dl=await getDownloads();
+  if(dl){
+    try{ await dl.save({filename,data:blob}); toast('Datei erstellt'); return true; }
+    catch(e){
+      const code=e&&e.code;
+      toast(code==='declined'?'Speichern abgebrochen.':code==='rate_limited'?'Bitte einen Moment warten und nochmals versuchen.':'Speichern nicht möglich.');
+      return false;
+    }
+  }
+  try{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast('Datei wird heruntergeladen');
+    return true;
+  }catch(e){ toast('Speichern in dieser Ansicht nicht möglich.'); return false; }
+}
+function stamp(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function saveSelfContained(){
+  try{
+    const clone=document.documentElement.cloneNode(true);
+    const app=clone.querySelector('#app'); if(app) app.innerHTML='';
+    const sh=clone.querySelector('#sheet'); if(sh){ sh.innerHTML=''; sh.setAttribute('hidden',''); }
+    clone.querySelectorAll('script[src]').forEach(x=>x.remove());
+    const seed=clone.querySelector('#seed');
+    seed.textContent=JSON.stringify(contacts).replace(/</g,'\\u003c');
+    const html='<!doctype html>\n'+clone.outerHTML;
+    saveFile(`CRM-${stamp()}.html`,new Blob([html],{type:'text/html'}));
+    try{ localStorage.setItem('crm.lastfile',new Date().toISOString()); }catch(e){}
+  }catch(e){ toast('Die Datei konnte nicht erstellt werden.'); }
+}
+async function doExport(){
+  let XLSX;
+  try{ XLSX=await loadXLSX(); }catch(e){ toast('Export zurzeit nicht möglich. Prüfe deine Internetverbindung.'); return; }
+  const extraKeys=[...new Set(contacts.flatMap(c=>Object.keys(c.extra||{})))].sort((a,b)=>a.localeCompare(b,'de'));
+  const header=['Vorname','Nachname','Geburtsdatum','Beruf','Hobbys','Mobile','Telefon','E-Mail','Wohnorte','Erstkontakt','Erstkontakt Datum','Letzter Kontakt','Wiedervorlage','Nächster Kontakt fällig','Nächster Kontakt geplant','Kontaktverlauf','Firma','Adresse','Webseite','Weitere Infos',...extraKeys];
+  const sorted=[...contacts].sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'de'));
+  const rows=sorted.map(c=>[
+    c.vorname||'',c.nachname||'',fmtYMD(c.geburtsdatum),c.beruf||'',c.hobbys||'',c.mobile||'',c.telefon||'',c.email||'',
+    (c.orte||[]).map(o=>[o.plz,o.ort].filter(Boolean).join(' ')).join('; '),
+    c.erstkontakt||'',fmtYMD(c.erstkontaktDatum),fmtYMD(lastContact(c)),
+    (RHY.find(r=>r[0]==(c.rhythmus||0))||[0,''])[1],fmtYMD(dueOf(c)),plannedOf(c).map(e=>`${fmtYMD(e.datum)}${e.zeit?' '+e.zeit:''}${e.text?': '+e.text:''}`).join('\n'),
+    sortedVerlauf(c).map(e=>`${fmtYMD(e.datum)}${e.art?' ('+e.art+')':''}: ${e.text||''}`.trim()).join('\n'),
+    c.firma||'',c.adresse||'',c.web||'',c.infos||'',
+    ...extraKeys.map(k=>(c.extra||{})[k]||'')
+  ]);
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols']=header.map(h=>({wch:h==='Kontaktverlauf'?60:Math.max(12,Math.min(40,h.length+6))}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Kontakte');
+  const arr=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  saveFile(`CRM-Kontakte-${stamp()}.xlsx`,new Blob([arr]));
+}
+
+/* ---------- Abgleich über GitHub ---------- */
+const GH_KEY='crm.gh.v1', GH_LAST='crm.ghlast.v1';
+let gh=Object.assign({owner:'',repo:'',pfad:'kontakte.json',token:''},lsGet(GH_KEY,{})||{});
+let ghState='off', ghMsg='', ghSha=null, ghBusy=false, ghTimer=null, ghLast=lsGet(GH_LAST,null), ghLastTry=0, ghForm=false;
+
+const ghReady = () => !!(gh.owner&&gh.repo&&gh.token);
+function utf8b64(str){
+  const b=new TextEncoder().encode(str); let out='';
+  for(let i=0;i<b.length;i+=8192) out+=String.fromCharCode.apply(null,b.subarray(i,i+8192));
+  return btoa(out);
+}
+function b64utf8(x){
+  const t=atob(String(x).replace(/\s/g,'')); const b=new Uint8Array(t.length);
+  for(let i=0;i<t.length;i++) b[i]=t.charCodeAt(i);
+  return new TextDecoder().decode(b);
+}
+function ghUrl(){
+  const p=gh.pfad.split('/').map(encodeURIComponent).join('/');
+  return `https://api.github.com/repos/${encodeURIComponent(gh.owner)}/${encodeURIComponent(gh.repo)}/contents/${p}`;
+}
+function ghHeaders(json){
+  const h={Authorization:'Bearer '+gh.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  if(json) h['Content-Type']='application/json';
+  return h;
+}
+function ghErrText(st){
+  if(st===401) return 'Der Zugriffsschlüssel wird nicht akzeptiert. Prüfe ihn oder erstelle einen neuen.';
+  if(st===403) return 'Zugriff verweigert. Hat der Schlüssel Schreibrechte für dieses Repository?';
+  if(st===404) return 'Repository oder Datei nicht gefunden. Prüfe Benutzername und Repository-Name.';
+  if(st===409||st===422) return 'Gleichzeitige Änderung. Bitte nochmals abgleichen.';
+  return 'Abgleich fehlgeschlagen (Fehler '+st+').';
+}
+function sig(ks,ds){
+  return (ks||[]).map(c=>c.id+':'+(c.geaendert||'')).sort().join('|')
+    +'#'+Object.entries(ds||{}).map(([a,b])=>a+':'+b).sort().join('|');
+}
+function mergeRemote(r){
+  let changed=false;
+  for(const [id,t] of Object.entries(r.geloescht||{})){
+    const i=contacts.findIndex(c=>c.id===id);
+    if(i>=0 && t>(contacts[i].geaendert||'')){ contacts.splice(i,1); tombs[id]=t; changed=true; }
+    else if(i<0 && !tombs[id]){ tombs[id]=t; changed=true; }
+  }
+  for(const raw of r.kontakte||[]){
+    if(!raw||!raw.id) continue;
+    const rc=migrate(raw);
+    if(tombs[rc.id] && tombs[rc.id]>=(rc.geaendert||'')) continue;
+    const i=contacts.findIndex(c=>c.id===rc.id);
+    if(i<0){ contacts.push(rc); delete tombs[rc.id]; changed=true; }
+    else if((rc.geaendert||'')>(contacts[i].geaendert||'')){ contacts[i]=rc; changed=true; }
+  }
+  return changed;
+}
+async function ghSync(manual,tries){
+  if(!ghReady()){ ghState='off'; return; }
+  if(ghBusy) return;
+  ghBusy=true; ghLastTry=Date.now(); ghState='sync'; ghMsg=''; updateGhUI();
+  try{
+    const res=await fetch(ghUrl(),{method:'GET',headers:ghHeaders(),cache:'no-store'});
+    let remote=null;
+    if(res.status===200){
+      const j=await res.json(); ghSha=j.sha;
+      try{ remote=JSON.parse(b64utf8(j.content)); }
+      catch(e){ throw new Error('Die Datei im Repository lässt sich nicht lesen.'); }
+    } else if(res.status===404){ ghSha=null; }
+    else throw new Error(ghErrText(res.status));
+
+    const changed=remote?mergeRemote(remote):false;
+    if(changed){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(contacts)); }catch(e){} lsSet(TOMB_KEY,tombs); }
+
+    const mine=sig(contacts,tombs);
+    const theirs=remote?sig(remote.kontakte,remote.geloescht):null;
+    if(mine!==theirs){
+      const body={message:'CRM '+new Date().toLocaleString('de-CH'),
+        content:utf8b64(JSON.stringify({version:2,stand:new Date().toISOString(),kontakte:contacts,geloescht:tombs},null,1))};
+      if(ghSha) body.sha=ghSha;
+      const put=await fetch(ghUrl(),{method:'PUT',headers:ghHeaders(true),body:JSON.stringify(body)});
+      if((put.status===409||put.status===422)&&(tries||0)<2){ ghBusy=false; return ghSync(manual,(tries||0)+1); }
+      if(!put.ok) throw new Error(ghErrText(put.status));
+      const pj=await put.json().catch(()=>null);
+      ghSha=(pj&&pj.content&&pj.content.sha)||null;
+    }
+    ghState='ok'; ghMsg=''; ghLast=new Date().toISOString(); lsSet(GH_LAST,ghLast);
+    ghBusy=false;
+    if(changed) softRender(); else updateGhUI();
+    if(manual) toast(changed?'Abgeglichen, Änderungen übernommen':'Abgeglichen, alles aktuell');
+    return;
+  }catch(e){
+    ghState='err';
+    ghMsg=(e&&e.message)||'Abgleich fehlgeschlagen.';
+    if(e&&e.name==='TypeError') ghMsg='Keine Verbindung zu GitHub. Prüfe dein Internet.';
+  }
+  ghBusy=false; updateGhUI();
+  if(manual) toast(ghMsg);
+}
+function ghQueue(){
+  if(!ghReady()||ghBusy) return;
+  clearTimeout(ghTimer); ghTimer=setTimeout(()=>ghSync(),1500);
+}
+function ghBar(){
+  if(!ghReady()) return '';
+  const cls=ghState==='sync'?'sync':ghState==='err'?'err':ghState==='ok'?'ok':'';
+  const txt=ghState==='sync'?'Wird abgeglichen …'
+    :ghState==='err'?esc(ghMsg)
+    :ghLast?'Abgeglichen '+fmtClock(ghLast):'Noch nicht abgeglichen';
+  return `<div class="ghbar"><span class="ghdot ${cls}"></span><span>${txt}</span><button data-act="ghSync">Jetzt abgleichen</button></div>`;
+}
+function fmtClock(iso){
+  const d=new Date(iso);
+  return d.toDateString()===new Date().toDateString()
+    ? 'um '+pad(d.getHours())+':'+pad(d.getMinutes())
+    : 'am '+fmtISO(iso);
+}
+function updateGhUI(){
+  document.querySelectorAll('.ghbar').forEach(el=>el.outerHTML=ghBar());
+  const st=$('#ghStatus'); if(st) st.innerHTML=ghStatusHtml();
+}
+function ghStatusHtml(){
+  if(!ghReady()) return '';
+  const base=`Verbunden mit <b>${esc(gh.owner)}/${esc(gh.repo)}</b>.`;
+  if(ghState==='err') return `${base}<br><span style="color:var(--danger)">${esc(ghMsg)}</span>`;
+  if(ghState==='sync') return `${base} Wird abgeglichen …`;
+  return `${base} ${ghLast?'Zuletzt abgeglichen '+fmtClock(ghLast)+'.':'Noch nicht abgeglichen.'}`;
+}
+function ghGroup(){
+  if(ghForm||!ghReady()){
+    return `<div class="group"><h2>Abgleich zwischen Geräten</h2>
+      <p class="note">Deine Kontakte werden in einem privaten GitHub-Repository gespeichert. Alle Geräte, die du hier verbindest, zeigen denselben Stand. Trag auf jedem Gerät dieselben Angaben ein.</p>
+      <label class="f"><span>GitHub-Benutzername</span><input class="in" id="ghOwner" value="${esc(gh.owner)}" autocapitalize="off" autocomplete="off" placeholder="z. B. hansmuster"></label>
+      <label class="f"><span>Name des privaten Repositorys</span><input class="in" id="ghRepo" value="${esc(gh.repo||'crm-daten')}" autocapitalize="off" autocomplete="off"></label>
+      <label class="f"><span>Zugriffsschlüssel (Token)</span><input class="in" id="ghToken" type="password" value="${esc(gh.token)}" autocapitalize="off" autocomplete="off" placeholder="github_pat_…"></label>
+      <p class="note">Der Schlüssel bleibt auf diesem Gerät gespeichert und wird nur an GitHub gesendet.</p>
+      <div class="btns">${ghReady()?`<button class="btn" data-act="ghCancel">Abbrechen</button>`:''}<button class="btn primary" data-act="ghSave">Verbinden und abgleichen</button></div>
+    </div>`;
+  }
+  return `<div class="group"><h2>Abgleich zwischen Geräten</h2>
+    <p class="note" id="ghStatus">${ghStatusHtml()}</p>
+    <button class="btn primary wide" data-act="ghSync">Jetzt abgleichen</button>
+    <button class="btn wide" style="margin-top:10px" data-act="ghEdit">Zugang ändern</button>
+    <button class="btn danger wide" style="margin-top:10px" data-act="ghOff">Abgleich auf diesem Gerät beenden</button>
+  </div>`;
+}
+function ghSave(){
+  const o=$('#ghOwner').value.trim().replace(/^@/,''), r=$('#ghRepo').value.trim(), t=$('#ghToken').value.trim();
+  if(!o||!r||!t){ toast('Bitte alle drei Felder ausfüllen.'); return; }
+  gh={owner:o,repo:r,pfad:gh.pfad||'kontakte.json',token:t};
+  lsSet(GH_KEY,gh); ghForm=false; ghSha=null; ghState='off';
+  render(); ghSync(true);
+}
+
+/* ---------- Ereignisse ---------- */
+let armed=null;
+function arm(btn,label,fn){
+  if(armed===btn){ armed=null; fn(); return; }
+  armed=btn; const old=btn.textContent; btn.textContent=label;
+  setTimeout(()=>{ if(armed===btn){ armed=null; btn.textContent=old; } },4000);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const act=b.dataset.act, id=b.dataset.id;
+  switch(act){
+    case 'list': go({name:'list'}); break;
+    case 'open': if(id) go({name:'detail',id}); else go({name:'list'}); break;
+    case 'new': go({name:'edit'}); break;
+    case 'edit': go({name:'edit',id}); break;
+    case 'save': saveForm(); break;
+    case 'parse': applyParsed(); break;
+    case 'data': go({name:'data'}); break;
+    case 'export': doExport(); break;
+    case 'sendErin': sendReminders(); break;
+    case 'ghSave': ghSave(); break;
+    case 'ghEdit': ghForm=true; render(); break;
+    case 'ghCancel': ghForm=false; render(); break;
+    case 'ghSync': ghSync(true); break;
+    case 'ghOff': arm(b,'Tippe nochmals zum Beenden',()=>{ gh={owner:'',repo:'',pfad:'kontakte.json',token:''}; lsSet(GH_KEY,gh); ghState='off'; ghForm=false; toast('Abgleich auf diesem Gerät beendet. Die Daten im Repository bleiben bestehen.'); render(); }); break;
+    case 'saveHtml': saveSelfContained(); break;
+    case 'seedUse': arm(b,'Tippe nochmals zum Ersetzen',()=>{ contacts=pendingSeed.map(c=>(touch(c),c)); pendingSeed=null; persist(); toast('Kontakte aus der Datei übernommen'); render(); }); break;
+    case 'seedIgnore': pendingSeed=null; render(); break;
+    case 'doImport': doImport(); break;
+    case 'mode': mode=b.dataset.m; ortFilter=''; saveUI(); render(); break;
+    case 'jump': { const el=document.getElementById(b.dataset.l); if(el) el.scrollIntoView({block:'start'}); break; }
+    case 'addOrt': { $('#orte').insertAdjacentHTML('beforeend',ortRow({})); const r=$('#orte').lastElementChild; r.querySelector('[data-o=ort]').focus(); break; }
+    case 'rmOrt': { const rows=document.querySelectorAll('.ort-row'); const r=b.closest('.ort-row'); if(rows.length>1) r.remove(); else r.querySelectorAll('input').forEach(i=>i.value=''); break; }
+    case 'addEntry': view.form='new'; render(); { const t=$('#eText'); if(t) t.focus(); } break;
+    case 'editEntry': view.form=b.dataset.eid; render(); break;
+    case 'cancelEntry': view.form=null; render(); break;
+    case 'saveEntry': saveEntry(); break;
+    case 'planNew': view.form='plan'; render(); break;
+    case 'planEdit': view.form='plan:'+b.dataset.eid; render(); break;
+    case 'savePlan': savePlan(); break;
+    case 'planCal': { const [c,e2]=findEntry(b.dataset.eid); if(e2){ e2.kal=true; persist(); render(); runShortcut(SC_TERMIN,terminPayload(c,e2)); } break; }
+    case 'planDone': { const [c,e2]=findEntry(b.dataset.eid); if(e2){ e2.geplant=false; if(e2.datum>todayYMD()) e2.datum=todayYMD(); c.geaendert=new Date().toISOString(); persist(); view.form=e2.id; render(); toast('Als Kontakt eingetragen. Ergänze kurz, was besprochen wurde.'); const t=$('#eText'); if(t) t.focus(); } break; }
+    case 'planDrop': arm(b,'Tippe nochmals zum Löschen',()=>{ const [c]=findEntry(b.dataset.eid); c.verlauf=c.verlauf.filter(x=>x.id!==b.dataset.eid); touch(c); persist(); view.form=null; toast('Planung gelöscht. Den Kalendereintrag löschst du bei Bedarf im Kalender.'); render(); }); break;
+    case 'gebOne': { const c=contacts.find(x=>x.id===id); if(c) sendBirthdays([c]); break; }
+    case 'gebAll': sendBirthdays(contacts.filter(needsGeb)); break;
+    case 'gebReset': arm(b,'Tippe nochmals zum Zurücksetzen',()=>{ contacts.forEach(c=>{ delete c.gebKal; touch(c); }); persist(); toast('Markierungen zurückgesetzt'); render(); }); break;
+    case 'kal': go({name:'kal'}); break;
+    case 'sheetClose': $('#sheet').hidden=true; break;
+    case 'testTermin': { const d=addDays(todayYMD(),1); runShortcut(SC_TERMIN,{titel:'CRM Test (bitte löschen)',start:d+'T09:00:00',ende:d+'T09:30:00',ort:'Test',notiz:'Testeintrag aus dem CRM'}); break; }
+    case 'testGeb': runShortcut(SC_GEB,{termine:[{titel:'🎂 CRM Test (bitte löschen)',datum:addDays(todayYMD(),1),notiz:'Testeintrag'}]}); break;
+    case 'delEntry': arm(b,'Tippe nochmals zum Löschen',()=>{ const c=contacts.find(x=>x.id===view.id); c.verlauf=c.verlauf.filter(x=>x.id!==view.form); c.geaendert=new Date().toISOString(); persist(); view.form=null; toast('Eintrag gelöscht'); render(); }); break;
+    case 'del': arm(b,'Tippe nochmals zum Löschen',()=>{ markTomb(id); contacts=contacts.filter(c=>c.id!==id); persist(); toast('Kontakt gelöscht'); go({name:'list'}); }); break;
+    case 'wipe': arm(b,'Tippe nochmals, um alles zu löschen',()=>{ contacts.forEach(c=>markTomb(c.id)); contacts=[]; persist(); toast('Alle Kontakte gelöscht'); listScroll=0; go({name:'list'}); }); break;
+  }
+});
+function after(){
+  const s=$('#search');
+  if(s) s.addEventListener('input',()=>{ query=s.value; $('#list').innerHTML=listBody(); });
+  const os=$('#ortSel');
+  if(os) os.addEventListener('change',()=>{ ortFilter=os.value; $('#list').innerHTML=listBody(); });
+  const bd=$('#bday');
+  if(bd) bd.addEventListener('blur',()=>{ const g=parseDateAny(bd.value); if(g) bd.value=fmtYMD(g); });
+  const f=$('#fileIn');
+  if(f) f.addEventListener('change',()=>{ onFile(f.files[0]); f.value=''; });
+  ['#scanCam','#scanFile'].forEach(sel=>{
+    const el=$(sel);
+    if(el) el.addEventListener('change',()=>{ const file=el.files[0]; el.value=''; scanCard(file); });
+  });
+  document.querySelectorAll('[data-map]').forEach(sel=>sel.addEventListener('change',()=>{ importState.mapping[+sel.dataset.map]=sel.value; }));
+  const sd=$('#skipDup'); if(sd) sd.addEventListener('change',()=>{ importState.skipDup=sd.checked; });
+  const sh=$('#sheetSel'); if(sh) sh.addEventListener('change',()=>{ importState.sheet=sh.value; readSheet(); render(); });
+  const hs=$('#headerSel'); if(hs) hs.addEventListener('change',()=>{ importState.headerRow=+hs.value; applyHeader(); render(); });
+}
+
+load(); render();
+if(ghReady()) ghSync();
+window.addEventListener('focus',()=>{ if(ghReady()&&!ghBusy&&Date.now()-ghLastTry>15000) ghSync(); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&ghReady()&&!ghBusy&&Date.now()-ghLastTry>15000) ghSync(); });
+})();
+</script>
+</body>
+</html>
