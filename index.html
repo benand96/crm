@@ -712,12 +712,13 @@ function savePlan(){
   if(cal) e.kal=true;
   c.geaendert=new Date().toISOString(); persist();
   view.form=null; render();
-  if(cal) runShortcut(SC_TERMIN,terminPayload(c,e)); else toast('Kontakt geplant');
+  if(cal) openCal('Geplanter Kontakt',[terminEvent(c,e)],SC_TERMIN,terminPayload(c,e)); else toast('Kontakt geplant');
 }
 function findEntry(eid){ const c=contacts.find(x=>x.id===view.id); return c?[c,(c.verlauf||[]).find(x=>x.id===eid)]:[null,null]; }
 
 /* ---------- Kalender über iPhone-Kurzbefehle ---------- */
-const SC_TERMIN='CRM Termin', SC_GEB='CRM Erinnerung', GEB_JAHRE=5;
+const SC_TERMIN='CRM Termin', SC_GEB='CRM Erinnerung', GEB_JAHRE=5, KAL_KEY='crm.kalname.v1';
+let kalName=lsGet(KAL_KEY,'Benoit')||'Benoit';
 function copyText(t){
   let ok=false;
   try{
@@ -728,6 +729,67 @@ function copyText(t){
   }catch(e){}
   try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(()=>{}); }catch(e){}
   return ok;
+}
+
+/* ---------- Kalenderdatei (.ics) ---------- */
+function icsEsc(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+function icsFold(line){
+  if(line.length<=73) return line;
+  let out=line.slice(0,73), rest=line.slice(73);
+  while(rest.length){ out+='\r\n '+rest.slice(0,72); rest=rest.slice(72); }
+  return out;
+}
+function icsStamp(){
+  const d=new Date();
+  return d.getUTCFullYear()+pad(d.getUTCMonth()+1)+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+pad(d.getUTCMinutes())+pad(d.getUTCSeconds())+'Z';
+}
+const icsDay = ymd => ymd.replace(/-/g,'');
+const icsLocal = dt => dt.replace(/[-:]/g,'');
+function buildIcs(events){
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Mein CRM//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  events.forEach((e,i)=>{
+    L.push('BEGIN:VEVENT','UID:'+uid()+'-'+i+'@mein-crm','DTSTAMP:'+icsStamp(),'SUMMARY:'+icsEsc(e.titel));
+    if(e.ganztag){
+      L.push('DTSTART;VALUE=DATE:'+icsDay(e.datum),'DTEND;VALUE=DATE:'+icsDay(addDays(e.datum,1)));
+    }else{
+      L.push('DTSTART:'+icsLocal(e.start),'DTEND:'+icsLocal(e.ende));
+    }
+    if(e.ort) L.push('LOCATION:'+icsEsc(e.ort));
+    if(e.notiz) L.push('DESCRIPTION:'+icsEsc(e.notiz));
+    L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(e.titel),
+      'TRIGGER:'+(e.ganztag?'PT9H':'-PT30M'),'END:VALARM','END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  return L.map(icsFold).join('\r\n')+'\r\n';
+}
+let icsUrl=null;
+function openCal(titel, events, shortcutName, payload){
+  if(!events.length){ toast('Nichts einzutragen.'); return; }
+  let href='';
+  try{
+    if(icsUrl) URL.revokeObjectURL(icsUrl);
+    icsUrl=URL.createObjectURL(new Blob([buildIcs(events)],{type:'text/calendar;charset=utf-8'}));
+    href=icsUrl;
+  }catch(e){ href=''; }
+  const name=(events.length>1?'CRM-Eintraege':'CRM-Termin')+'-'+stamp()+'.ics';
+  const sh=$('#sheet');
+  sh.innerHTML=`<div class="in-sheet">
+    <p><b>${esc(titel)}</b></p>
+    ${href?`<p class="note" style="margin-top:0">${events.length>1?events.length+' Einträge':'Ein Eintrag'} mit Erinnerung. Tippe unten, dann im Kalender auf «Hinzufügen».</p>
+      <a class="btn primary wide" style="display:block;text-decoration:none;margin-bottom:10px" href="${href}" download="${esc(name)}" data-act="sheetKeep">In den Kalender eintragen</a>`
+    :`<p class="note">Die Kalenderdatei konnte nicht erstellt werden.</p>`}
+    <div class="btns">
+      <button class="btn" data-act="sheetClose">Schliessen</button>
+      ${shortcutName?`<button class="btn" data-act="viaShortcut" data-sc="${esc(shortcutName)}">Über Kurzbefehl</button>`:''}
+    </div>
+    <p class="note" style="margin:12px 0 0">Damit alles im Kalender «${esc(kalName)}» landet: Einstellungen, Apps, Kalender, Standardkalender auf «${esc(kalName)}» stellen.</p>
+  </div>`;
+  sh.hidden=false;
+  sh._payload=payload||null;
+}
+function terminEvent(c,e){
+  const p=terminPayload(c,e);
+  return {titel:p.titel,start:p.start,ende:p.ende,ort:p.ort,notiz:p.notiz};
 }
 function runShortcut(name,payload){
   const json=JSON.stringify(payload);
@@ -771,7 +833,7 @@ function sendBirthdays(list){
   list.forEach(c=>{ const r=gebEntries(c); termine.push(...r.out); c.gebKal={datum:c.geburtsdatum,bis:r.end}; touch(c); });
   if(!termine.length){ toast('Alle Geburtstage sind bereits im Kalender.'); return; }
   persist(); render();
-  runShortcut(SC_GEB,{termine});
+  openCal('Geburtstage',termine.map(t=>({titel:t.titel,ganztag:true,datum:t.datum,notiz:t.notiz})),SC_GEB,{termine});
 }
 function sendReminders(){
   const due=dueList(); if(!due.length){ toast('Zurzeit ist nichts fällig.'); return; }
@@ -784,36 +846,48 @@ function sendReminders(){
         c.mobile&&('Mobile: '+c.mobile),c.telefon&&('Telefon: '+c.telefon),c.email&&('E-Mail: '+c.email),
         ortNames(c).length&&('Wohnort: '+ortNames(c).join(', '))].filter(Boolean).join('\n')};
   });
-  runShortcut(SC_GEB,{termine});
+  openCal('Erinnerungen für fällige Kontakte',termine.map(t=>({titel:t.titel,ganztag:true,datum:t.datum,notiz:t.notiz})),SC_GEB,{termine});
 }
 function kalView(){
   const tm=addDays(todayYMD(),1);
   return `
   <header class="bar"><div class="bar-row"><button class="link" data-act="data">‹ Daten und Kalender</button><span></span></div>
   <h1>Kalender einrichten</h1>
-  <p class="note">Eine Webseite darf nicht selbst in deinen iPhone-Kalender schreiben. Das übernehmen zwei Kurzbefehle, die du einmal einrichtest. Öffne das CRM dafür am besten in Safari.</p></header>
+  <p class="note">Eine Webseite darf nicht direkt in deinen iPhone-Kalender schreiben. Die App erstellt deshalb eine Kalenderdatei, die du mit einem Tipp übernimmst. Dafür musst du nichts einrichten.</p></header>
 
-  <div class="group"><h2>Vorbereitung</h2>
+  <div class="group"><h2>Einmalige Vorbereitung</h2>
     <ol class="steps">
-      <li>Den automatischen Kalender «Geburtstage» von Apple kann man nicht selbst beschreiben. Lege in der Kalender-App unter «Kalender» einen eigenen iCloud-Kalender an und nenne ihn <b>CRM</b>. Dort landen Geburtstage und Wiedervorlagen. Weil er in iCloud liegt, siehst du ihn auch in Outlook.</li>
-      <li>Prüfe in der Kalender-App unter «Kalender», dass der mit Outlook geteilte Kalender dort erscheint und nicht als schreibgeschützt markiert ist.</li>
+      <li>Öffne <b>Einstellungen</b>, <b>Apps</b>, <b>Kalender</b>, <b>Standardkalender</b> und wähle <b>${esc(kalName)}</b>. Dann landen neue Einträge automatisch in deinem mit Outlook geteilten Kalender.</li>
+      <li>Das war es. Wenn du im CRM auf «In Kalender eintragen» tippst, erscheint der Eintrag mit «Hinzufügen», und die Erinnerung ist schon gesetzt.</li>
     </ol>
+    <button class="btn wide" data-act="testTermin">Testtermin für morgen erstellen</button>
+    <button class="btn wide" style="margin-top:10px" data-act="testGeb">Ganztägigen Testeintrag erstellen</button>
+    <p class="note" style="margin:10px 0 0">Beide Testeinträge kannst du im Kalender danach wieder löschen. Termine erinnern 30 Minuten vorher, ganztägige Einträge am selben Tag um 9 Uhr.</p>
   </div>
 
-  <div class="group"><h2>Kurzbefehl 1: Geplante Kontakte</h2>
+  <details class="group"><summary style="font-weight:600;cursor:pointer">Alternative: direkt über Kurzbefehle</summary>
+    <p class="note">Nur falls du magst: Mit zwei selbst gebauten Kurzbefehlen landet alles ohne Zwischenschritt im Kalender. Das ist bequemer, aber aufwendig einzurichten. Die Anleitung dazu steht weiter unten. Du brauchst das nicht, die Kalenderdatei oben tut dasselbe.</p>
+  </details>
+  <div class="group"><h2>In welchen Kalender?</h2>
+    <label class="f" style="margin-top:0"><span>Name deines Kalenders in der iPhone-Kalender-App</span>
+      <input class="in" id="kalName" value="${esc(kalName)}" autocomplete="off"></label>
+    <p class="note" style="margin:8px 0 0">Termine, Geburtstage und Erinnerungen landen alle in diesem Kalender. Weil er in iCloud liegt und mit Outlook geteilt ist, erscheint dort automatisch alles. Diese Angabe steuert nur die Anleitung unten; welcher Kalender tatsächlich beschrieben wird, stellst du im Kurzbefehl selbst ein.</p>
+    <p class="note" style="margin:8px 0 0">Den automatischen Kalender «Geburtstage» von Apple kann man übrigens nicht selbst beschreiben, deshalb kommen die Geburtstage in deinen eigenen Kalender.</p>
+  </div>
+
+  <div class="group"><h2>Nur bei Bedarf: Kurzbefehl 1</h2>
     <ol class="steps">
       <li>App «Kurzbefehle» öffnen, oben rechts auf <b>+</b> tippen und den Kurzbefehl oben genau <b>CRM Termin</b> nennen.</li>
       <li>Aktion <b>Zwischenablage abrufen</b> hinzufügen.</li>
       <li>Aktion <b>Wörterbuch abrufen</b> hinzufügen. Sie nimmt automatisch die Zwischenablage.</li>
       <li>Fünfmal die Aktion <b>Wörterbuchwert abrufen</b> hinzufügen, mit den Schlüsseln <b>titel</b>, <b>start</b>, <b>ende</b>, <b>ort</b> und <b>notiz</b>. Bei jeder muss rechts «Wörterbuch» stehen. Steht dort etwas anderes, darauf tippen und «Wörterbuch» wählen.</li>
-      <li>Aktion <b>Neues Ereignis hinzufügen</b> (auch «Kalenderereignis hinzufügen») wählen. Als Kalender deinen Outlook-Kalender einstellen. Titel, Beginn und Ende mit den passenden Wörterbuchwerten füllen: ins Feld tippen, «Variable auswählen» und die Aktion mit dem richtigen Schlüssel antippen.</li>
+      <li>Aktion <b>Neues Ereignis hinzufügen</b> (auch «Kalenderereignis hinzufügen») wählen. Als Kalender <b>${esc(kalName)}</b> wählen. Titel, Beginn und Ende mit den passenden Wörterbuchwerten füllen: ins Feld tippen, «Variable auswählen» und die Aktion mit dem richtigen Schlüssel antippen.</li>
       <li>Auf «Mehr anzeigen» tippen und Ort und Notizen ebenso füllen. Fertig.</li>
     </ol>
-    <button class="btn wide" data-act="testTermin">Testtermin für morgen senden</button>
   </div>
 
-  <div class="group"><h2>Kurzbefehl 2: Geburtstage und Erinnerungen</h2>
-    <p class="note">Dieser Kurzbefehl legt ganztägige Einträge mit Erinnerung an. Er wird für die Geburtstage und für die Wiedervorlagen aus der Ansicht «Fällig» verwendet.</p>
+  <div class="group"><h2>Nur bei Bedarf: Kurzbefehl 2</h2>
+    <p class="note">Dieser Kurzbefehl legt ganztägige Einträge mit Erinnerung im Kalender <b>${esc(kalName)}</b> an. Er wird für die Geburtstage und für die Wiedervorlagen aus der Ansicht «Fällig» verwendet.</p>
     <ol class="steps">
       <li>Neuen Kurzbefehl anlegen und genau <b>CRM Erinnerung</b> nennen.</li>
       <li><b>Zwischenablage abrufen</b>, dann <b>Wörterbuch abrufen</b> hinzufügen.</li>
@@ -821,9 +895,8 @@ function kalView(){
       <li><b>Wiederholen mit jedem Objekt</b> hinzufügen. Es nimmt automatisch den Wörterbuchwert.</li>
       <li>Innerhalb der Wiederholung zweimal <b>Wörterbuchwert abrufen</b>, mit den Schlüsseln <b>titel</b> und <b>datum</b>. Rechts jeweils «Wiederholungsobjekt» wählen.</li>
       <li>Innerhalb der Wiederholung ausserdem <b>Wörterbuchwert abrufen</b> mit dem Schlüssel <b>notiz</b>, ebenfalls mit «Wiederholungsobjekt».</li>
-      <li>Ebenfalls innerhalb: <b>Neues Ereignis hinzufügen</b>. Kalender <b>CRM</b>, «Ganztägig» einschalten, Titel mit titel füllen, Beginn und Ende beide mit datum, Notizen mit notiz. Dann unter «Mehr anzeigen» bei «Erinnerung» <b>Am Tag des Ereignisses (9:00)</b> wählen. Diese Erinnerung ist die Mitteilung, die du aufs iPhone bekommst.</li>
+      <li>Ebenfalls innerhalb: <b>Neues Ereignis hinzufügen</b>. Kalender <b>${esc(kalName)}</b>, «Ganztägig» einschalten, Titel mit titel füllen, Beginn und Ende beide mit datum, Notizen mit notiz. Dann unter «Mehr anzeigen» bei «Erinnerung» <b>Am Tag des Ereignisses (9:00)</b> wählen. Diese Erinnerung ist die Mitteilung, die du aufs iPhone bekommst.</li>
     </ol>
-    <button class="btn wide" data-act="testGeb">Testeintrag für morgen senden</button>
   </div>
 
   <div class="group"><h2>Wenn etwas nicht klappt</h2>
@@ -1630,7 +1703,7 @@ document.addEventListener('click',e=>{
     case 'planNew': view.form='plan'; render(); break;
     case 'planEdit': view.form='plan:'+b.dataset.eid; render(); break;
     case 'savePlan': savePlan(); break;
-    case 'planCal': { const [c,e2]=findEntry(b.dataset.eid); if(e2){ e2.kal=true; persist(); render(); runShortcut(SC_TERMIN,terminPayload(c,e2)); } break; }
+    case 'planCal': { const [c,e2]=findEntry(b.dataset.eid); if(e2){ e2.kal=true; persist(); render(); openCal('Geplanter Kontakt',[terminEvent(c,e2)],SC_TERMIN,terminPayload(c,e2)); } break; }
     case 'planDone': { const [c,e2]=findEntry(b.dataset.eid); if(e2){ e2.geplant=false; if(e2.datum>todayYMD()) e2.datum=todayYMD(); c.geaendert=new Date().toISOString(); persist(); view.form=e2.id; render(); toast('Als Kontakt eingetragen. Ergänze kurz, was besprochen wurde.'); const t=$('#eText'); if(t) t.focus(); } break; }
     case 'planDrop': arm(b,'Tippe nochmals zum Löschen',()=>{ const [c]=findEntry(b.dataset.eid); c.verlauf=c.verlauf.filter(x=>x.id!==b.dataset.eid); touch(c); persist(); view.form=null; toast('Planung gelöscht. Den Kalendereintrag löschst du bei Bedarf im Kalender.'); render(); }); break;
     case 'gebOne': { const c=contacts.find(x=>x.id===id); if(c) sendBirthdays([c]); break; }
@@ -1638,8 +1711,12 @@ document.addEventListener('click',e=>{
     case 'gebReset': arm(b,'Tippe nochmals zum Zurücksetzen',()=>{ contacts.forEach(c=>{ delete c.gebKal; touch(c); }); persist(); toast('Markierungen zurückgesetzt'); render(); }); break;
     case 'kal': go({name:'kal'}); break;
     case 'sheetClose': $('#sheet').hidden=true; break;
-    case 'testTermin': { const d=addDays(todayYMD(),1); runShortcut(SC_TERMIN,{titel:'CRM Test (bitte löschen)',start:d+'T09:00:00',ende:d+'T09:30:00',ort:'Test',notiz:'Testeintrag aus dem CRM'}); break; }
-    case 'testGeb': runShortcut(SC_GEB,{termine:[{titel:'🎂 CRM Test (bitte löschen)',datum:addDays(todayYMD(),1),notiz:'Testeintrag'}]}); break;
+    case 'testTermin': { const d=addDays(todayYMD(),1), pl={titel:'CRM Test (bitte löschen)',start:d+'T09:00:00',ende:d+'T09:30:00',ort:'Test',notiz:'Testeintrag aus dem CRM'};
+      openCal('Testtermin für morgen',[{titel:pl.titel,start:pl.start,ende:pl.ende,ort:pl.ort,notiz:pl.notiz}],SC_TERMIN,pl); break; }
+    case 'testGeb': { const pl={termine:[{titel:'CRM Test (bitte löschen)',datum:addDays(todayYMD(),1),notiz:'Testeintrag'}]};
+      openCal('Ganztägiger Testeintrag für morgen',[{titel:pl.termine[0].titel,ganztag:true,datum:pl.termine[0].datum,notiz:pl.termine[0].notiz}],SC_GEB,pl); break; }
+    case 'viaShortcut': { const pl=$('#sheet')._payload; $('#sheet').hidden=true; if(pl) runShortcut(b.dataset.sc,pl); break; }
+    case 'sheetKeep': break;
     case 'delEntry': arm(b,'Tippe nochmals zum Löschen',()=>{ const c=contacts.find(x=>x.id===view.id); c.verlauf=c.verlauf.filter(x=>x.id!==view.form); c.geaendert=new Date().toISOString(); persist(); view.form=null; toast('Eintrag gelöscht'); render(); }); break;
     case 'del': arm(b,'Tippe nochmals zum Löschen',()=>{ markTomb(id); contacts=contacts.filter(c=>c.id!==id); persist(); toast('Kontakt gelöscht'); go({name:'list'}); }); break;
     case 'wipe': arm(b,'Tippe nochmals, um alles zu löschen',()=>{ contacts.forEach(c=>markTomb(c.id)); contacts=[]; persist(); toast('Alle Kontakte gelöscht'); listScroll=0; go({name:'list'}); }); break;
@@ -1660,6 +1737,8 @@ function after(){
   });
   document.querySelectorAll('[data-map]').forEach(sel=>sel.addEventListener('change',()=>{ importState.mapping[+sel.dataset.map]=sel.value; }));
   const sd=$('#skipDup'); if(sd) sd.addEventListener('change',()=>{ importState.skipDup=sd.checked; });
+  const kn=$('#kalName');
+  if(kn) kn.addEventListener('change',()=>{ kalName=kn.value.trim()||'Benoit'; lsSet(KAL_KEY,kalName); render(); });
   const sh=$('#sheetSel'); if(sh) sh.addEventListener('change',()=>{ importState.sheet=sh.value; readSheet(); render(); });
   const hs=$('#headerSel'); if(hs) hs.addEventListener('change',()=>{ importState.headerRow=+hs.value; applyHeader(); render(); });
 }
